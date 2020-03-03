@@ -24,10 +24,25 @@
 
 //offset of 1024 bytes from the start of the device (from TA slide)
 #define SUPER_BLOCK_OFFSET 1024
-#define SUPER_BLOCK_SIZE 1024
-#define INODE_BLOCK_POINTER_WIDTH 4
-#define GROUP_DESCRIPTOR_TABLE_SIZE 32
-#define INODE_SIZE 128
+#define SUPER_BLOCK_S 1024
+#define INODE_BLOCK_PTR_WIDTH 4
+#define GROUP_TABLE_SIZE 32
+#define INODE_S 128
+
+char *fileName;
+int imageFd, superFd, groupFd, bitmapFd, inodeFd, directoryFd, indirectFd;
+int status, sBuf32;
+int numGroups;
+uint64_t buf64;
+uint32_t buf32;
+uint16_t buf16;
+uint8_t buf8;
+struct super_t *super;
+struct group_t *group;
+int **validInodeDirectories;
+int validInodeDirectoryCount = 0;
+int *validInodes;
+int validInodeCount = 0;
 
 struct super_t
 {
