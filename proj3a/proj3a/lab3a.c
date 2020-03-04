@@ -72,12 +72,18 @@ void parsing_arg(int argc, char **argv)
     return;
 }
 
-void alloc_mem()
+void alloc_mem() //Allocating memory as well as opening the read only image
 {
+    super = malloc(sizeof(struct super_t));
+    group = malloc(sizeof(struct group_t));
+    image_Fd = open(fileName, O_RDONLY);
 }
 
 void parsing_SuperB()
 {
+    //Read, Write, and execute permission ==> S_IRUSR | S_IWUSR | S_IXUSR ==> S_IRWXU
+    super_Fd = creat("superFile.csv", S_IRWXU);
+    //...
 }
 
 void parsing_GroupB()
