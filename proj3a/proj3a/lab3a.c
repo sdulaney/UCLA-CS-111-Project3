@@ -83,7 +83,9 @@ void parsing_SuperB()
 {
     //Read, Write, and execute permission ==> S_IRUSR | S_IWUSR | S_IXUSR ==> S_IRWXU
     super_Fd = creat("superFile.csv", S_IRWXU);
-    //...
+    pread(image_Fd, &buffer_16, 2, SUPER_BLOCK_OFFSET + 56);
+    super->magicNumber = buf16;
+    dprintf(super_Fd, "%x,", super->m_num);
 }
 
 void parsing_GroupB()
