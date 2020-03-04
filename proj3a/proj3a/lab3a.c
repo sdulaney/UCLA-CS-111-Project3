@@ -29,7 +29,7 @@
 #define GROUP_TABLE_SIZE 32
 #define INODE_S 128
 
-char *fileName;
+char *file_Name;
 int image_Fd, super_Fd, group_Fd, bitmap_Fd, inode_Fd, directory_Fd, indirect_Fd;
 int stat, sBuffer_32;
 int Group_Num;
@@ -46,14 +46,30 @@ int valid_Inode_Num = 0;
 
 struct super_t
 {
+    uint16_t m_num;
+    uint32_t inode_Num, block_Num, block_S, fragment_S, blocks_In_Group, inodes_In_Group, fragments_In_Group, first_Data_Block
 };
 
 struct group_t
 {
+    uint16_t contain_Block_Num, free_Block_Num, free_Inode_Num, directory_Num;
+    uint32_t inode_Bitmap_Block, block_Bitmap_Block, inode_Table_Block;
 };
 
 void parsing_arg(int argc, char **argv)
 {
+    if (argc == 2)
+    {
+        file_Name = malloc((strlen(argv[1]) + 1) * sizeof(char));
+        file_Name = argv[1];
+    }
+
+    else
+    {
+        fprintf(stderr, "Error in argument number! \n");
+        exit(EXIT_FAILURE);
+    }
+    return;
 }
 
 void alloc_mem()

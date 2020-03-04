@@ -2,6 +2,11 @@
 # EMAIL: sdulaney@ucla.edu
 # ID: 904-064-791
 
+
+# NAME: Pariya Samandi
+# EMAIL: pari.samandi@gmail.com
+# ID: 205-092-357
+
 CC = gcc
 CFLAGS = -g -Wall -Wextra
 ID = 904-064-791
