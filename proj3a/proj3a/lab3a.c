@@ -30,19 +30,19 @@
 #define INODE_S 128
 
 char *fileName;
-int imageFd, superFd, groupFd, bitmapFd, inodeFd, directoryFd, indirectFd;
-int status, sBuf32;
-int numGroups;
-uint64_t buf64;
-uint32_t buf32;
-uint16_t buf16;
-uint8_t buf8;
+int image_Fd, super_Fd, group_Fd, bitmap_Fd, inode_Fd, directory_Fd, indirect_Fd;
+int stat, sBuffer_32;
+int Group_Num;
+uint64_t buffer_64;
+uint32_t buffer_32;
+uint16_t buffer_16;
+uint8_t buffer_8;
 struct super_t *super;
 struct group_t *group;
-int **validInodeDirectories;
-int validInodeDirectoryCount = 0;
-int *validInodes;
-int validInodeCount = 0;
+int **valid_Inode_Directory;
+int valid_Inode_Directory_Num = 0;
+int *valid_Inodes;
+int valid_Inode_Num = 0;
 
 struct super_t
 {
