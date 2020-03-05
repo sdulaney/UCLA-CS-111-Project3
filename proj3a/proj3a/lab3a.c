@@ -83,9 +83,60 @@ void parsing_SuperB()
 {
     //Read, Write, and execute permission ==> S_IRUSR | S_IWUSR | S_IXUSR ==> S_IRWXU
     super_Fd = creat("superFile.csv", S_IRWXU);
+    //Reading from Descriptor with Offset
     pread(image_Fd, &buffer_16, 2, SUPER_BLOCK_OFFSET + 56);
     super->magicNumber = buf16;
     dprintf(super_Fd, "%x,", super->m_num);
+
+    //Counting inode
+    pread(image_Fd, &buffer_32, 4, SUPER_BLOCK_OFFSET + 0);
+    super->inode_Num = buffer_32;
+    dprintf(super_Fd, "%d,", super->inode_Num);
+
+    //Counting # of blocks
+    pread(image_Fd, &buffer_32, 4, SUPER_BLOCK_OFFSET + 4);
+    super->block_Num = buffer_32;
+    dprintf(super_Fd, "%d,", super->block_Num);
+
+    //Size of block
+    pread(image_Fd, &buffer_32, 4, SUPER_BLOCK_OFFSET + 24);
+    super->block_S = 1024 << buffer_32;
+    dprintf(super_Fd, "%d,", super->block_S);
+
+    // Fragment size
+    pread(image_Fd, &sBuffer_32, 4, SUPER_BLOCK_OFFSET + 28);
+    if (sBuffer_32 > 0)
+    {
+        super->fragment_S = 1024 << sBuffer_32;
+    }
+    else
+    {
+        super->fragment_S = 1024 >> -sBuffer_32;
+    }
+    dprintf(super_Fd, "%d,", super->fragment_S);
+
+    // Blocks per group
+    pread(image_Fd, &buffer_32, 4, SUPER_BLOCK_OFFSET + 32);
+    super->blocks_In_Group = buffer_32;
+    dprintf(super_Fd, "%d,", super->blocks_In_Group);
+
+    // inodes per group
+    pread(image_Fd, &buffer_32, 4, SUPER_BLOCK_OFFSET + 40);
+    super->inodes_In_Group = buffer_32;
+    dprintf(super_Fd, "%d,", super->inodes_In_Group);
+
+    // Fragments per group
+    pread(image_Fd, &buffer_32, 4, SUPER_BLOCK_OFFSET + 36);
+    super->fragments_In_Group = buffer_32;
+    dprintf(super_Fd, "%d,", super->fragments_In_Group);
+
+    // First data block
+    pread(image_Fd, &buffer_32, 4, SUPER_BLOCK_OFFSET + 20);
+    super->first_Data_Block = buffer_32;
+    dprintf(super_Fd, "%d\n", super->first_Data_Block);
+
+    // Close csv file
+    close(super_Fd);
 }
 
 void parsing_GroupB()
