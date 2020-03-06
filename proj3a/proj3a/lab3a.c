@@ -52,6 +52,7 @@ struct group_t
     uint32_t inode_Bitmap_Block, block_Bitmap_Block, inode_Table_Block;
 };
 
+// Helper Functions
 void parsing_arg(int argc, char **argv)
 {
     if (argc == 2)
@@ -80,6 +81,12 @@ void alloc_mem() //Allocating memory as well as opening the read only image
     }
 }
 
+int get_block_offset(int block_num)
+{
+    return SUPER_BLOCK_OFFSET + (super->block_S * (block_num - 1));
+}
+
+// Superblock summary
 void parsing_SuperB()
 {
     //Read, Write, and execute permission ==> S_IRUSR | S_IWUSR | S_IXUSR ==> S_IRWXU
@@ -140,22 +147,27 @@ void parsing_SuperB()
     close(super_Fd);
 }
 
+// Group summary
 void parsing_GroupB()
 {
 }
 
+// Free block entries, Free I-node entries
 void parsing_bitM()
 {
 }
 
+// I-node summary
 void parsing_inode()
 {
 }
 
+// Directory entries
 void parsing_dir()
 {
 }
 
+// Indirect block references
 void parsing_inDir()
 {
 }
