@@ -73,6 +73,11 @@ void alloc_mem() //Allocating memory as well as opening the read only image
     super = malloc(sizeof(struct super_t));
     group = malloc(sizeof(struct group_t));
     image_Fd = open(file_Name, O_RDONLY);
+    if (image_Fd == -1)
+    {
+        fprintf(stderr, "Error: the file %s could not be opened.\n", file_Name);
+        exit(2);
+    }
 }
 
 void parsing_SuperB()
@@ -191,6 +196,9 @@ int main(int argc, char **argv)
             printf("?? getopt returned character code 0%o ??\n", c);
         }
     }
+
+    parsing_arg(argc, argv);
+    alloc_mem();
 
     exit(EXIT_SUCCESS);
 }
