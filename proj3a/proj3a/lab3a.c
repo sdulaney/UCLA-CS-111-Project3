@@ -27,7 +27,7 @@
 
 char *file_Name;
 int image_Fd, super_Fd, group_Fd, bitmap_Fd, inode_Fd, directory_Fd, indirect_Fd;
-int stat, sBuffer_32;
+int _stat, sBuffer_32;
 int Group_Num;
 uint64_t buffer_64;
 uint32_t buffer_32;
@@ -43,7 +43,7 @@ int valid_Inode_Num = 0;
 struct super_t
 {
     uint16_t m_num;
-    uint32_t inode_Num, block_Num, block_S, fragment_S, blocks_In_Group, inodes_In_Group, fragments_In_Group, first_Data_Block
+    uint32_t inode_Num, block_Num, block_S, fragment_S, blocks_In_Group, inodes_In_Group, fragments_In_Group, first_Data_Block;
 };
 
 struct group_t
@@ -72,7 +72,7 @@ void alloc_mem() //Allocating memory as well as opening the read only image
 {
     super = malloc(sizeof(struct super_t));
     group = malloc(sizeof(struct group_t));
-    image_Fd = open(fileName, O_RDONLY);
+    image_Fd = open(file_Name, O_RDONLY);
 }
 
 void parsing_SuperB()
@@ -81,7 +81,7 @@ void parsing_SuperB()
     super_Fd = creat("superFile.csv", S_IRWXU);
     //Reading from Descriptor with Offset
     pread(image_Fd, &buffer_16, 2, SUPER_BLOCK_OFFSET + 56);
-    super->magicNumber = buf16;
+    // super->magicNumber = buf16;
     dprintf(super_Fd, "%x,", super->m_num);
 
     //Counting inode
@@ -155,130 +155,42 @@ void parsing_inDir()
 {
 }
 
-int main()
+int main(int argc, char **argv)
 {
+
+    // Process all arguments
+    int c;
+
+    while (1)
+    {
+        int option_index = 0;
+        static struct option long_options[] = {
+            {0,
+             0,
+             0,
+             0}};
+
+        c = getopt_long(argc, argv, "",
+                        long_options, &option_index);
+        if (c == -1)
+            break;
+
+        // const char *name = long_options[option_index].name;
+        switch (c)
+        {
+        case 0:
+            // Long options
+            break;
+
+        case '?':
+            fprintf(stderr, "usage: ./laba [IMAGE FILE NAME]\n");
+            exit(EXIT_FAILURE);
+            break;
+
+        default:
+            printf("?? getopt returned character code 0%o ??\n", c);
+        }
+    }
+
+    exit(EXIT_SUCCESS);
 }
-
-// int num_threads = 0;
-// int num_iterations = 0;
-// int num_lists = 0;
-// int opt_yield = 0;
-// int opt_sync = 0;
-// char *arg_sync = NULL;
-// SortedListElement_t *element_arr = NULL;
-// char **key_arr = NULL;
-// SortedList_t *list_arr = NULL;
-// pthread_mutex_t *lock_arr = NULL;
-// int *spin_lock_arr = NULL;
-
-// int main(int argc, char **argv)
-// {
-
-//     // Process all arguments
-//     int c;
-//     int opt_threads = 0;
-//     int opt_iterations = 0;
-//     int opt_lists = 0;
-//     char *arg_threads = NULL;
-//     char *arg_iterations = NULL;
-//     char *arg_yield = NULL;
-//     char *arg_lists = NULL;
-//     char default_val = '1';
-
-//     while (1)
-//     {
-//         int option_index = 0;
-//         static struct option long_options[] = {
-//             {"threads",
-//              optional_argument,
-//              0,
-//              0},
-//             {"iterations",
-//              optional_argument,
-//              0,
-//              0},
-//             {"yield",
-//              required_argument,
-//              0,
-//              0},
-//             {"sync",
-//              required_argument,
-//              0,
-//              0},
-//             {"lists",
-//              required_argument,
-//              0,
-//              0},
-//             {0,
-//              0,
-//              0,
-//              0}};
-
-//         c = getopt_long(argc, argv, "t::i::y:s:l:",
-//                         long_options, &option_index);
-//         if (c == -1)
-//             break;
-
-//         const char *name = long_options[option_index].name;
-//         switch (c)
-//         {
-//         case 0:
-//             if (strcmp(name, "threads") == 0)
-//             {
-//                 opt_threads = 1;
-//                 if (optarg)
-//                     arg_threads = optarg;
-//                 else
-//                     arg_threads = &default_val;
-//             }
-//             else if (strcmp(name, "iterations") == 0)
-//             {
-//                 opt_iterations = 1;
-//                 if (optarg)
-//                     arg_iterations = optarg;
-//                 else
-//                     arg_iterations = &default_val;
-//             }
-//             else if (strcmp(name, "sync") == 0)
-//             {
-//                 opt_sync = 1;
-//                 if (optarg)
-//                     arg_sync = optarg;
-//             }
-//             else if (strcmp(name, "yield") == 0)
-//             {
-//                 if (optarg)
-//                 {
-//                     arg_yield = optarg;
-//                     int len = strlen(arg_yield);
-//                     for (int i = 0; i < len; i++)
-//                     {
-//                         if (optarg[i] == 'i')
-//                             opt_yield |= INSERT_YIELD;
-//                         else if (optarg[i] == 'd')
-//                             opt_yield |= DELETE_YIELD;
-//                         else if (optarg[i] == 'l')
-//                             opt_yield |= LOOKUP_YIELD;
-//                     }
-//                 }
-//             }
-//             else if (strcmp(name, "lists") == 0)
-//             {
-//                 opt_lists = 1;
-//                 if (optarg)
-//                     arg_lists = optarg;
-//             }
-//             break;
-
-//         case '?':
-//             fprintf(stderr, "usage: ./lab2_list [OPTION]...\nvalid options: --threads=# (default 1), --iterations=# (default 1), --yield=[idl], --sync=[ms], --lists=# (default 1)\n");
-//             exit(1);
-//             break;
-
-//         default:
-//             printf("?? getopt returned character code 0%o ??\n", c);
-//         }
-//     }
-
-//     exit(0);
-// }
