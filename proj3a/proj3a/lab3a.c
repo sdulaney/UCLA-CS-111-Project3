@@ -188,6 +188,20 @@ void print_free_block_entries(int group_num, int block_bitmap_block)
     free(buf);
 }
 
+// Directory entries
+void print_dir_entries(int parent_inode_num, int block_num)
+{
+    struct ext2_dir_entry dir_entry;
+    unsigned long long offset = get_block_offset(block_num);
+    uint32_t done;
+    for (done = 0; done < super->block_size; done += dir_entry.rec_len)
+    {
+        pread(image_Fd, &dir_entry, sizeof(dir_entry), offset + done);
+        if (dir_entry.inode != 0)
+            dprintf(STDOUT_FILENO, "DIRENT,%d,%d,%d,%d,%d,\'%s\'\n", parent_inode_num, done, dir_entry.inode, dir_entry.rec_len, dir_entry.name_len, dir_entry.name);
+    }
+}
+
 // I-node summary
 void print_inode(int inode_num, int inode_table_block)
 {
@@ -244,6 +258,12 @@ void print_inode(int inode_num, int inode_table_block)
             else
                 dprintf(STDOUT_FILENO, "%d,", inode.i_block[i]);
         }
+    }
+    int i;
+    for (i = 0; i < 12; i++)
+    {
+        if (file_type == 'd' && inode.i_block[i] != 0)
+            print_dir_entries(inode_num, inode.i_block[i]);
     }
 }
 
@@ -346,11 +366,6 @@ void print_group()
 
     // Close csv file
     // close(group_Fd);
-}
-
-// Directory entries
-void print_dir_entries()
-{
 }
 
 // Indirect block references
