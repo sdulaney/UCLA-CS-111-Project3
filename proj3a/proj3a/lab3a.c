@@ -20,7 +20,7 @@
 
 //offset of 1024 bytes from the start of the device (from TA slide)
 #define SUPER_BLOCK_OFFSET 1024
-#define SUPER_block_sizeIZE 1024
+#define SUPER_BLOCK_SIZE 1024
 #define INODE_BLOCK_PTR_WIDTH 4
 #define GROUP_DESCRIPTOR_TABLE_SIZE 32
 #define INODE_S 128
@@ -48,7 +48,7 @@ struct super_block_t
 
 struct block_group_t
 {
-    uint16_t contain_num_blocks, free_num_blocks, free_num_inodes, directory_Num;
+    uint16_t num_blocks, num_inodes, free_num_blocks, free_num_inodes, directory_Num;
     uint32_t inode_Bitmap_Block, block_Bitmap_Block, inode_Table_Block;
 };
 
@@ -174,46 +174,51 @@ void parsing_GroupB()
     int i;
     for (i = 0; i < numGroups; i++)
     {
+        dprintf(super_Fd, "GROUP,%d,", i);
 
         // Number of contained blocks
         if (i != numGroups - 1 || remainder == 0)
         {
-            group[i].contain_num_blocks = super->blocks_per_group;
-            dprintf(group_Fd, "%d,", group[i].contain_num_blocks);
+            group[i].num_blocks = super->blocks_per_group;
+            dprintf(group_Fd, "%d,", group[i].num_blocks);
         }
         else
         {
-            group[i].contain_num_blocks = super->blocks_per_group * remainder;
-            dprintf(group_Fd, "%d,", group[i].contain_num_blocks);
+            group[i].num_blocks = super->blocks_per_group * remainder;
+            dprintf(group_Fd, "%d,", group[i].num_blocks);
         }
 
+        // Number of inodes
+        group[i].num_inodes = super->inodes_per_group;
+        dprintf(group_Fd, "%d,", group[i].num_inodes);
+
         // Number of free blocks
-        pread(image_Fd, &buffer_16, 2, SUPER_BLOCK_OFFSET + SUPER_block_sizeIZE + (i * GROUP_DESCRIPTOR_TABLE_SIZE) + 12);
+        pread(image_Fd, &buffer_16, 2, SUPER_BLOCK_OFFSET + SUPER_BLOCK_SIZE + (i * GROUP_DESCRIPTOR_TABLE_SIZE) + 12);
         group[i].free_num_blocks = buffer_16;
         dprintf(group_Fd, "%d,", group[i].free_num_blocks);
 
         // Number of free inodes
-        pread(image_Fd, &buffer_16, 2, SUPER_BLOCK_OFFSET + SUPER_block_sizeIZE + (i * GROUP_DESCRIPTOR_TABLE_SIZE) + 14);
+        pread(image_Fd, &buffer_16, 2, SUPER_BLOCK_OFFSET + SUPER_BLOCK_SIZE + (i * GROUP_DESCRIPTOR_TABLE_SIZE) + 14);
         group[i].free_num_inodes = buffer_16;
         dprintf(group_Fd, "%d,", group[i].free_num_inodes);
 
         // Number of directories
-        pread(image_Fd, &buffer_16, 2, SUPER_BLOCK_OFFSET + SUPER_block_sizeIZE + (i * GROUP_DESCRIPTOR_TABLE_SIZE) + 16);
-        group[i].directory_Num = buffer_16;
-        dprintf(group_Fd, "%d,", group[i].directory_Num);
-
-        // Free inode bitmap block
-        pread(image_Fd, &buffer_32, 4, SUPER_BLOCK_OFFSET + SUPER_block_sizeIZE + (i * GROUP_DESCRIPTOR_TABLE_SIZE) + 4);
-        group[i].inode_Bitmap_Block = buffer_32;
-        dprintf(group_Fd, "%x,", group[i].inode_Bitmap_Block);
+        // pread(image_Fd, &buffer_16, 2, SUPER_BLOCK_OFFSET + SUPER_BLOCK_SIZE + (i * GROUP_DESCRIPTOR_TABLE_SIZE) + 16);
+        // group[i].directory_Num = buffer_16;
+        // dprintf(group_Fd, "%d,", group[i].directory_Num);
 
         // Free block bitmap block
-        pread(image_Fd, &buffer_32, 4, SUPER_BLOCK_OFFSET + SUPER_block_sizeIZE + (i * GROUP_DESCRIPTOR_TABLE_SIZE) + 0);
+        pread(image_Fd, &buffer_32, 4, SUPER_BLOCK_OFFSET + SUPER_BLOCK_SIZE + (i * GROUP_DESCRIPTOR_TABLE_SIZE) + 0);
         group[i].block_Bitmap_Block = buffer_32;
         dprintf(group_Fd, "%x,", group[i].block_Bitmap_Block);
 
+        // Free inode bitmap block
+        pread(image_Fd, &buffer_32, 4, SUPER_BLOCK_OFFSET + SUPER_BLOCK_SIZE + (i * GROUP_DESCRIPTOR_TABLE_SIZE) + 4);
+        group[i].inode_Bitmap_Block = buffer_32;
+        dprintf(group_Fd, "%x,", group[i].inode_Bitmap_Block);
+
         // Inode table start block
-        pread(image_Fd, &buffer_32, 4, SUPER_BLOCK_OFFSET + SUPER_block_sizeIZE + (i * GROUP_DESCRIPTOR_TABLE_SIZE) + 8);
+        pread(image_Fd, &buffer_32, 4, SUPER_BLOCK_OFFSET + SUPER_BLOCK_SIZE + (i * GROUP_DESCRIPTOR_TABLE_SIZE) + 8);
         group[i].inode_Table_Block = buffer_32;
         dprintf(group_Fd, "%x\n", group[i].inode_Table_Block);
     }
@@ -282,6 +287,7 @@ int main(int argc, char **argv)
     parsing_arg(argc, argv);
     alloc_mem();
     parsing_SuperB();
+    parsing_GroupB();
 
     exit(EXIT_SUCCESS);
 }
