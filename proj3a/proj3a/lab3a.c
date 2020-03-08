@@ -87,7 +87,7 @@ int get_block_offset(int num_blocks)
 }
 
 // Superblock summary
-void parsing_SuperB()
+void print_superblock()
 {
     //Read, Write, and execute permission ==> S_IRUSR | S_IWUSR | S_IXUSR ==> S_IRWXU
     // super_Fd = creat("superFile.csv", S_IRWXU);
@@ -160,7 +160,7 @@ void parsing_SuperB()
 }
 
 // Group summary
-void parsing_GroupB()
+void print_group()
 {
     // Create csv file
     // group_Fd = creat("group.csv", S_IRWXU);
@@ -227,29 +227,33 @@ void parsing_GroupB()
     // close(group_Fd);
 }
 
-// Free block entries, Free I-node entries
-void parsing_bitM()
+// Free block entries
+void print_free_block_entries()
+{
+}
+
+// Free I-node entries
+void print_free_inode_entries()
 {
 }
 
 // I-node summary
-void parsing_inode()
+void print_inode()
 {
 }
 
 // Directory entries
-void parsing_dir()
+void print_dir_entries()
 {
 }
 
 // Indirect block references
-void parsing_inDir()
+void print_indir_block_refs()
 {
 }
 
 int main(int argc, char **argv)
 {
-
     // Process all arguments
     int c;
 
@@ -286,8 +290,8 @@ int main(int argc, char **argv)
 
     parsing_arg(argc, argv);
     alloc_mem();
-    parsing_SuperB();
-    parsing_GroupB();
+    print_superblock();
+    print_group();
 
     exit(EXIT_SUCCESS);
 }
