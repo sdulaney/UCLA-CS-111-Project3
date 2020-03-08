@@ -7,7 +7,7 @@ CFLAGS = -g -Wall -Wextra -lm
 ID = 904-064-791
 LAB = 3a
 ARCHIVE = lab$(LAB)-$(ID).tar.gz
-sources = lab3a.c Makefile README
+sources = lab3a.c ext2_fs.h Makefile README
 
 build: lab3a
 

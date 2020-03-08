@@ -17,6 +17,8 @@
 #include <fcntl.h>
 #include <inttypes.h>
 #include <math.h>
+#include <time.h>
+#include "ext2_fs.h"
 
 //offset of 1024 bytes from the start of the device (from TA slide)
 #define SUPER_BLOCK_OFFSET 1024
@@ -186,6 +188,65 @@ void print_free_block_entries(int group_num, int block_bitmap_block)
     free(buf);
 }
 
+// I-node summary
+void print_inode(int inode_num, int inode_table_block)
+{
+    struct ext2_inode inode;
+    unsigned long long offset = get_block_offset(inode_table_block) + (inode_num - 1) * sizeof(inode);
+    pread(image_Fd, &inode, sizeof(inode), offset);
+    if (inode.i_mode == 0 || inode.i_links_count == 0)
+        return;
+    char file_type = '?';
+    buffer_16 = inode.i_mode & 0xF000;
+    if (buffer_16 == 0x8000)
+        file_type = 'f';
+    else if (buffer_16 == 0x4000)
+        file_type = 'd';
+    else if (buffer_16 == 0xA000)
+        file_type = 's';
+    uint16_t mode = inode.i_mode & 0x0FFF;
+    const int time_str_len = 19;
+
+    time_t chg_time = inode.i_ctime;
+    struct tm* chg_info = gmtime(&chg_time);
+    char chg_time_str[time_str_len];
+    strftime(chg_time_str, time_str_len, "%m/%d/%y %H:%M:%S", chg_info);
+
+    time_t mod_time = inode.i_mtime;
+    struct tm* mod_info = gmtime(&mod_time);
+    char mod_time_str[time_str_len];
+    strftime(mod_time_str, time_str_len, "%m/%d/%y %H:%M:%S", mod_info);
+
+    time_t acc_time = inode.i_atime;
+    struct tm* acc_info = gmtime(&acc_time);
+    char acc_time_str[time_str_len];
+    strftime(acc_time_str, time_str_len, "%m/%d/%y %H:%M:%S", acc_info);
+
+    dprintf(STDOUT_FILENO, "INODE,%d,%c,%o,%d,%d,%d,%s,%s,%s,%d,%d", inode_num, file_type, mode, inode.i_uid, inode.i_gid, inode.i_links_count, chg_time_str, mod_time_str, acc_time_str, inode.i_size, inode.i_blocks);
+
+    if (file_type == 's' && inode.i_size <= 60)
+    {
+        dprintf(STDOUT_FILENO, "\n");
+        return;
+    }
+    else
+    {
+        dprintf(STDOUT_FILENO, ",");
+    }
+
+    if (file_type == 'f' || file_type == 'd' || (file_type == 's' && inode.i_size > 60))
+    {
+        int i;
+        for (i = 0; i < 15; i++)
+        {
+            if (i == 14)
+                dprintf(STDOUT_FILENO, "%d\n", inode.i_block[i]);
+            else
+                dprintf(STDOUT_FILENO, "%d,", inode.i_block[i]);
+        }
+    }
+}
+
 // Free I-node entries
 void print_free_inode_entries(int group_num, int inode_bitmap_block)
 {
@@ -205,6 +266,8 @@ void print_free_inode_entries(int group_num, int inode_bitmap_block)
             int free = !(c & 1);
             if (free)
                 dprintf(STDOUT_FILENO, "IFREE,%llu\n", curr_inode);
+            else
+                print_inode(curr_inode, group[group_num].inode_table_block);
             c = c >> 1;
             curr_inode++;
             if (curr_inode > group[group_num].num_inodes)
@@ -283,11 +346,6 @@ void print_group()
 
     // Close csv file
     // close(group_Fd);
-}
-
-// I-node summary
-void print_inode()
-{
 }
 
 // Directory entries
