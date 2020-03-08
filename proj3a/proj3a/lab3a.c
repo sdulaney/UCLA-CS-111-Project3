@@ -20,9 +20,9 @@
 
 //offset of 1024 bytes from the start of the device (from TA slide)
 #define SUPER_BLOCK_OFFSET 1024
-#define SUPER_BLOCK_S 1024
+#define SUPER_BLOCK_SIZE 1024
 #define INODE_BLOCK_PTR_WIDTH 4
-#define GROUP_TABLE_SIZE 32
+#define GROUP_DESCRIPTOR_TABLE_SIZE 32
 #define INODE_S 128
 
 char *file_Name;
@@ -93,7 +93,7 @@ void parsing_SuperB()
     super_Fd = creat("superFile.csv", S_IRWXU);
     //Reading from Descriptor with Offset
     pread(image_Fd, &buffer_16, 2, SUPER_BLOCK_OFFSET + 56);
-    // super->magicNumber = buf16;
+    // super->magicNumber = buffer_16;
     dprintf(super_Fd, "%x,", super->m_num);
 
     //Counting inode
@@ -154,8 +154,8 @@ void parsing_GroupB()
     group_Fd = creat("group.csv", S_IRWXU);
 
     // Calculate number of groups
-    numGroups = ceil((double)super->blockCount / super->blocksPerGroup);
-    double remainder = numGroups - ((double)super->blockCount / super->blocksPerGroup);
+    int numGroups = ceil((double)super->block_Num / super->blocks_In_Group);
+    double remainder = numGroups - ((double)super->block_Num / super->blocks_In_Group);
 
     group = malloc(numGroups * sizeof(struct group_t));
 
@@ -166,48 +166,48 @@ void parsing_GroupB()
         // Number of contained blocks
         if (i != numGroups - 1 || remainder == 0)
         {
-            group[i].containedBlockCount = super->blocksPerGroup;
-            dprintf(groupFd, "%d,", group[i].containedBlockCount);
+            group[i].contain_Block_Num = super->blocks_In_Group;
+            dprintf(group_Fd, "%d,", group[i].contain_Block_Num);
         }
         else
         {
-            group[i].containedBlockCount = super->blocksPerGroup * remainder;
-            dprintf(groupFd, "%d,", group[i].containedBlockCount);
+            group[i].contain_Block_Num = super->blocks_In_Group * remainder;
+            dprintf(group_Fd, "%d,", group[i].contain_Block_Num);
         }
 
         // Number of free blocks
-        pread(imageFd, &buf16, 2, SUPER_BLOCK_OFFSET + SUPER_BLOCK_SIZE + (i * GROUP_DESCRIPTOR_TABLE_SIZE) + 12);
-        group[i].freeBlockCount = buf16;
-        dprintf(groupFd, "%d,", group[i].freeBlockCount);
+        pread(image_Fd, &buffer_16, 2, SUPER_BLOCK_OFFSET + SUPER_BLOCK_SIZE + (i * GROUP_DESCRIPTOR_TABLE_SIZE) + 12);
+        group[i].free_Block_Num = buffer_16;
+        dprintf(group_Fd, "%d,", group[i].free_Block_Num);
 
         // Number of free inodes
-        pread(imageFd, &buf16, 2, SUPER_BLOCK_OFFSET + SUPER_BLOCK_SIZE + (i * GROUP_DESCRIPTOR_TABLE_SIZE) + 14);
-        group[i].freeInodeCount = buf16;
-        dprintf(groupFd, "%d,", group[i].freeInodeCount);
+        pread(image_Fd, &buffer_16, 2, SUPER_BLOCK_OFFSET + SUPER_BLOCK_SIZE + (i * GROUP_DESCRIPTOR_TABLE_SIZE) + 14);
+        group[i].free_Inode_Num = buffer_16;
+        dprintf(group_Fd, "%d,", group[i].free_Inode_Num);
 
         // Number of directories
-        pread(imageFd, &buf16, 2, SUPER_BLOCK_OFFSET + SUPER_BLOCK_SIZE + (i * GROUP_DESCRIPTOR_TABLE_SIZE) + 16);
-        group[i].directoryCount = buf16;
-        dprintf(groupFd, "%d,", group[i].directoryCount);
+        pread(image_Fd, &buffer_16, 2, SUPER_BLOCK_OFFSET + SUPER_BLOCK_SIZE + (i * GROUP_DESCRIPTOR_TABLE_SIZE) + 16);
+        group[i].directory_Num = buffer_16;
+        dprintf(group_Fd, "%d,", group[i].directory_Num);
 
         // Free inode bitmap block
-        pread(imageFd, &buf32, 4, SUPER_BLOCK_OFFSET + SUPER_BLOCK_SIZE + (i * GROUP_DESCRIPTOR_TABLE_SIZE) + 4);
-        group[i].inodeBitmapBlock = buf32;
-        dprintf(groupFd, "%x,", group[i].inodeBitmapBlock);
+        pread(image_Fd, &buffer_32, 4, SUPER_BLOCK_OFFSET + SUPER_BLOCK_SIZE + (i * GROUP_DESCRIPTOR_TABLE_SIZE) + 4);
+        group[i].inode_Bitmap_Block = buffer_32;
+        dprintf(group_Fd, "%x,", group[i].inode_Bitmap_Block);
 
         // Free block bitmap block
-        pread(imageFd, &buf32, 4, SUPER_BLOCK_OFFSET + SUPER_BLOCK_SIZE + (i * GROUP_DESCRIPTOR_TABLE_SIZE) + 0);
-        group[i].blockBitmapBlock = buf32;
-        dprintf(groupFd, "%x,", group[i].blockBitmapBlock);
+        pread(image_Fd, &buffer_32, 4, SUPER_BLOCK_OFFSET + SUPER_BLOCK_SIZE + (i * GROUP_DESCRIPTOR_TABLE_SIZE) + 0);
+        group[i].block_Bitmap_Block = buffer_32;
+        dprintf(group_Fd, "%x,", group[i].block_Bitmap_Block);
 
         // Inode table start block
-        pread(imageFd, &buf32, 4, SUPER_BLOCK_OFFSET + SUPER_BLOCK_SIZE + (i * GROUP_DESCRIPTOR_TABLE_SIZE) + 8);
-        group[i].inodeTableBlock = buf32;
-        dprintf(groupFd, "%x\n", group[i].inodeTableBlock);
+        pread(image_Fd, &buffer_32, 4, SUPER_BLOCK_OFFSET + SUPER_BLOCK_SIZE + (i * GROUP_DESCRIPTOR_TABLE_SIZE) + 8);
+        group[i].inode_Table_Block = buffer_32;
+        dprintf(group_Fd, "%x\n", group[i].inode_Table_Block);
     }
 
     // Close csv file
-    close(groupFd);
+    close(group_Fd);
 }
 
 // Free block entries, Free I-node entries
@@ -269,6 +269,7 @@ int main(int argc, char **argv)
 
     parsing_arg(argc, argv);
     alloc_mem();
+    parsing_SuperB();
 
     exit(EXIT_SUCCESS);
 }

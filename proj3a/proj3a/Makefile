@@ -3,7 +3,7 @@
 # ID: 904-064-791,205-092-357
 
 CC = gcc
-CFLAGS = -g -Wall -Wextra
+CFLAGS = -g -Wall -Wextra -lm
 ID = 904-064-791
 LAB = 3a
 ARCHIVE = lab$(LAB)-$(ID).tar.gz
