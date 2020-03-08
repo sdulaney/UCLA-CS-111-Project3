@@ -141,6 +141,64 @@ void parsing_SuperB()
 
 void parsing_GroupB()
 {
+    // Create csv file
+    group_Fd = creat("group.csv", S_IRWXU);
+
+    // Calculate number of groups
+    numGroups = ceil((double)super->blockCount / super->blocksPerGroup);
+    double remainder = numGroups - ((double)super->blockCount / super->blocksPerGroup);
+
+    group = malloc(numGroups * sizeof(struct group_t));
+
+    int i;
+    for (i = 0; i < numGroups; i++)
+    {
+
+        // Number of contained blocks
+        if (i != numGroups - 1 || remainder == 0)
+        {
+            group[i].containedBlockCount = super->blocksPerGroup;
+            dprintf(groupFd, "%d,", group[i].containedBlockCount);
+        }
+        else
+        {
+            group[i].containedBlockCount = super->blocksPerGroup * remainder;
+            dprintf(groupFd, "%d,", group[i].containedBlockCount);
+        }
+
+        // Number of free blocks
+        pread(imageFd, &buf16, 2, SUPER_BLOCK_OFFSET + SUPER_BLOCK_SIZE + (i * GROUP_DESCRIPTOR_TABLE_SIZE) + 12);
+        group[i].freeBlockCount = buf16;
+        dprintf(groupFd, "%d,", group[i].freeBlockCount);
+
+        // Number of free inodes
+        pread(imageFd, &buf16, 2, SUPER_BLOCK_OFFSET + SUPER_BLOCK_SIZE + (i * GROUP_DESCRIPTOR_TABLE_SIZE) + 14);
+        group[i].freeInodeCount = buf16;
+        dprintf(groupFd, "%d,", group[i].freeInodeCount);
+
+        // Number of directories
+        pread(imageFd, &buf16, 2, SUPER_BLOCK_OFFSET + SUPER_BLOCK_SIZE + (i * GROUP_DESCRIPTOR_TABLE_SIZE) + 16);
+        group[i].directoryCount = buf16;
+        dprintf(groupFd, "%d,", group[i].directoryCount);
+
+        // Free inode bitmap block
+        pread(imageFd, &buf32, 4, SUPER_BLOCK_OFFSET + SUPER_BLOCK_SIZE + (i * GROUP_DESCRIPTOR_TABLE_SIZE) + 4);
+        group[i].inodeBitmapBlock = buf32;
+        dprintf(groupFd, "%x,", group[i].inodeBitmapBlock);
+
+        // Free block bitmap block
+        pread(imageFd, &buf32, 4, SUPER_BLOCK_OFFSET + SUPER_BLOCK_SIZE + (i * GROUP_DESCRIPTOR_TABLE_SIZE) + 0);
+        group[i].blockBitmapBlock = buf32;
+        dprintf(groupFd, "%x,", group[i].blockBitmapBlock);
+
+        // Inode table start block
+        pread(imageFd, &buf32, 4, SUPER_BLOCK_OFFSET + SUPER_BLOCK_SIZE + (i * GROUP_DESCRIPTOR_TABLE_SIZE) + 8);
+        group[i].inodeTableBlock = buf32;
+        dprintf(groupFd, "%x\n", group[i].inodeTableBlock);
+    }
+
+    // Close csv file
+    close(groupFd);
 }
 
 void parsing_bitM()
