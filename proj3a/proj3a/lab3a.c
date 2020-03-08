@@ -167,7 +167,7 @@ void parsing_GroupB()
 
     // Calculate number of groups
     int numGroups = ceil((double)super->num_blocks / super->blocks_per_group);
-    double remainder = numGroups - ((double)super->num_blocks / super->blocks_per_group);
+    double remainder = super->num_blocks - (super->blocks_per_group * (numGroups - 1));
 
     group = malloc(numGroups * sizeof(struct block_group_t));
 
@@ -184,7 +184,7 @@ void parsing_GroupB()
         }
         else
         {
-            group[i].num_blocks = super->blocks_per_group * remainder;
+            group[i].num_blocks = remainder;
             dprintf(group_Fd, "%d,", group[i].num_blocks);
         }
 
