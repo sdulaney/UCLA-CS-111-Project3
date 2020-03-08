@@ -49,7 +49,7 @@ struct super_block_t
 struct block_group_t
 {
     uint16_t num_blocks, num_inodes, free_num_blocks, free_num_inodes, directory_Num;
-    uint32_t inode_Bitmap_Block, block_Bitmap_Block, inode_Table_Block;
+    uint32_t inode_bitmap_block, block_bitmap_block, inode_table_block;
 };
 
 // Helper Functions
@@ -151,12 +151,39 @@ void print_superblock()
     // dprintf(super_Fd, "%d,", super->fragments_In_Group);
 
     // First data block
-    // pread(image_Fd, &buffer_32, 4, SUPER_BLOCK_OFFSET + 20);
-    // super->first_data_block = buffer_32;
-    // dprintf(super_Fd, "%d\n", super->first_data_block);
+    pread(image_Fd, &buffer_32, 4, SUPER_BLOCK_OFFSET + 20);
+    super->first_data_block = buffer_32;
 
     // Close csv file
     // close(super_Fd);
+}
+
+// Free block entries
+void print_free_block_entries(int group_num, int block_bitmap_block)
+{
+    // 1 means “used” and 0 “free/available”
+    int num_bytes = ceil((double) group[group_num].num_blocks / 8) * sizeof(char);
+    char* buf = malloc(num_bytes);
+    unsigned long long curr_block = 1;
+    unsigned long long offset = get_block_offset(block_bitmap_block);
+    pread(image_Fd, buf, num_bytes, offset);
+    int i;
+    for (i = 0; i < num_bytes; i++)
+    {
+        char c = buf[i];
+        int j;
+        for (j = 0; j < 8; j++)
+        {
+            int free = !(c & 1);
+            if (free)
+                dprintf(STDOUT_FILENO, "BFREE,%llu\n", curr_block);
+            c = c >> 1;
+            curr_block++;
+            if (curr_block >= group[group_num].num_blocks)
+                break;
+        }
+    }
+    free(buf);
 }
 
 // Group summary
@@ -209,27 +236,24 @@ void print_group()
 
         // Free block bitmap block
         pread(image_Fd, &buffer_32, 4, SUPER_BLOCK_OFFSET + SUPER_BLOCK_SIZE + (i * GROUP_DESCRIPTOR_TABLE_SIZE) + 0);
-        group[i].block_Bitmap_Block = buffer_32;
-        dprintf(STDOUT_FILENO, "%x,", group[i].block_Bitmap_Block);
+        group[i].block_bitmap_block = buffer_32;
+        dprintf(STDOUT_FILENO, "%x,", group[i].block_bitmap_block);
 
         // Free inode bitmap block
         pread(image_Fd, &buffer_32, 4, SUPER_BLOCK_OFFSET + SUPER_BLOCK_SIZE + (i * GROUP_DESCRIPTOR_TABLE_SIZE) + 4);
-        group[i].inode_Bitmap_Block = buffer_32;
-        dprintf(STDOUT_FILENO, "%x,", group[i].inode_Bitmap_Block);
+        group[i].inode_bitmap_block = buffer_32;
+        dprintf(STDOUT_FILENO, "%x,", group[i].inode_bitmap_block);
 
         // Inode table start block
         pread(image_Fd, &buffer_32, 4, SUPER_BLOCK_OFFSET + SUPER_BLOCK_SIZE + (i * GROUP_DESCRIPTOR_TABLE_SIZE) + 8);
-        group[i].inode_Table_Block = buffer_32;
-        dprintf(STDOUT_FILENO, "%x\n", group[i].inode_Table_Block);
+        group[i].inode_table_block = buffer_32;
+        dprintf(STDOUT_FILENO, "%x\n", group[i].inode_table_block);
+
+        print_free_block_entries(i, group[i].block_bitmap_block);
     }
 
     // Close csv file
     // close(group_Fd);
-}
-
-// Free block entries
-void print_free_block_entries()
-{
 }
 
 // Free I-node entries
