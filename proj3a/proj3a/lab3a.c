@@ -179,7 +179,35 @@ void print_free_block_entries(int group_num, int block_bitmap_block)
                 dprintf(STDOUT_FILENO, "BFREE,%llu\n", curr_block);
             c = c >> 1;
             curr_block++;
-            if (curr_block >= group[group_num].num_blocks)
+            if (curr_block > group[group_num].num_blocks)
+                break;
+        }
+    }
+    free(buf);
+}
+
+// Free I-node entries
+void print_free_inode_entries(int group_num, int inode_bitmap_block)
+{
+    // 1 means “used” and 0 “free/available”
+    int num_bytes = ceil((double) group[group_num].num_inodes / 8) * sizeof(char);
+    char* buf = malloc(num_bytes);
+    unsigned long long curr_inode = 1;
+    unsigned long long offset = get_block_offset(inode_bitmap_block);
+    pread(image_Fd, buf, num_bytes, offset);
+    int i;
+    for (i = 0; i < num_bytes; i++)
+    {
+        char c = buf[i];
+        int j;
+        for (j = 0; j < 8; j++)
+        {
+            int free = !(c & 1);
+            if (free)
+                dprintf(STDOUT_FILENO, "IFREE,%llu\n", curr_inode);
+            c = c >> 1;
+            curr_inode++;
+            if (curr_inode > group[group_num].num_inodes)
                 break;
         }
     }
@@ -250,15 +278,11 @@ void print_group()
         dprintf(STDOUT_FILENO, "%x\n", group[i].inode_table_block);
 
         print_free_block_entries(i, group[i].block_bitmap_block);
+        print_free_inode_entries(i, group[i].inode_bitmap_block);
     }
 
     // Close csv file
     // close(group_Fd);
-}
-
-// Free I-node entries
-void print_free_inode_entries()
-{
 }
 
 // I-node summary
