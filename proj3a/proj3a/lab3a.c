@@ -66,7 +66,6 @@ void parsing_arg(int argc, char **argv)
         }
         file_Name = argv[1];
     }
-
     else
     {
         fprintf(stderr, "Error in argument number! \n");
