@@ -1,4 +1,8 @@
 /*
+ * NAME: Stewart Dulaney,Pariya Samandi
+ * EMAIL: sdulaney@ucla.edu,pari.samandi@gmail.com
+ * ID: 904-064-791,205-092-357
+ *
  *  linux/include/linux/ext2_fs.h
  *
  * The second extended filesystem constants/structures
