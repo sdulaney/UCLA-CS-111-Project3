@@ -203,23 +203,44 @@ void print_dir_entries(int parent_inode_num, int block_num)
 }
 
 // Indirect block references
-void print_indir_block_refs(int inode_num, int indir_block_num)
+void print_indir_block_refs(int inode_num, int indir_block_num, int level_of_indir, int indir_offset)
 {
-    // Single indirect
-    uint32_t* block_nums = malloc(super->block_size);
-    int num_blocks = super->block_size / sizeof(uint32_t);
-    unsigned long long offset = get_block_offset(indir_block_num);
-    pread(image_Fd, block_nums, super->block_size, offset);
-    int i;
-    for (i = 0; i < num_blocks; i++) {
-        if (block_nums[i] != 0)
-        {
-            // if (file_type == 'd')
-            //     print_dir_entries(inode_num, block_nums[i]);
-            dprintf(STDOUT_FILENO, "INDIRECT,%d,%d,%d,%d,%d\n", inode_num, 1, 12 + i, indir_block_num, block_nums[i]);
+    // Single indirection
+    if (level_of_indir == 1)
+    {
+        uint32_t* block_nums = malloc(super->block_size);
+        int num_blocks = super->block_size / sizeof(uint32_t);
+        unsigned long long offset = get_block_offset(indir_block_num);
+        pread(image_Fd, block_nums, super->block_size, offset);
+        int i;
+        for (i = 0; i < num_blocks; i++) {
+            if (block_nums[i] != 0)
+            {
+                // if (file_type == 'd')
+                //     print_dir_entries(inode_num, block_nums[i]);
+                dprintf(STDOUT_FILENO, "INDIRECT,%d,%d,%d,%d,%d\n", inode_num, level_of_indir, indir_offset + i, indir_block_num, block_nums[i]);
+            }
         }
+        free(block_nums);
     }
-    free(block_nums);
+    // Double indirection
+    else if (level_of_indir == 2) {
+        uint32_t* block_nums = malloc(super->block_size);
+        int num_blocks = super->block_size / sizeof(uint32_t);
+        unsigned long long offset = get_block_offset(indir_block_num);
+        pread(image_Fd, block_nums, super->block_size, offset);
+        int i;
+        for (i = 0; i < num_blocks; i++) {
+            if (block_nums[i] != 0)
+            {
+                // if (file_type == 'd')
+                //     print_dir_entries(inode_num, block_nums[i]);
+                dprintf(STDOUT_FILENO, "INDIRECT,%d,%d,%d,%d,%d\n", inode_num, level_of_indir, indir_offset + i, indir_block_num, block_nums[i]);
+                print_indir_block_refs(inode_num, block_nums[i], level_of_indir - 1, indir_offset);
+            }
+        }
+        free(block_nums);
+    }
 }
 
 // I-node summary
@@ -286,7 +307,9 @@ void print_inode(int inode_num, int inode_table_block)
             print_dir_entries(inode_num, inode.i_block[i]);
     }
     if (inode.i_block[12] != 0)
-        print_indir_block_refs(inode_num, inode.i_block[12]);
+        print_indir_block_refs(inode_num, inode.i_block[12], 1, 12);
+    if (inode.i_block[13] != 0)
+        print_indir_block_refs(inode_num, inode.i_block[13], 2, 256 + 12);
 }
 
 // Free I-node entries
