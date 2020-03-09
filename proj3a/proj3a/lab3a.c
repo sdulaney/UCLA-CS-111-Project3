@@ -371,6 +371,159 @@ void print_group()
 // Indirect block references
 void print_indir_block_refs()
 {
+    int entry_num = 0;
+
+    // Loop through valid inodes
+    int i;
+    for (i = 0; i < valid_Inode_Num; i++)
+    {
+
+        // Single indirect
+        entry_num = 0;
+        pread(image_Fd, &buffer_32, 4, validInodes[i] + 40 + (12 * 4));
+        int block_Num = buffer_32;
+        int j;
+        for (j = 0; j < super->block_S / 4; j++)
+        {
+            pread(image_Fd, &buffer_32, 4, block_Num * super->block_S + (j * 4));
+            int blockNumber2 = buffer_32;
+            if (blockNumber2 != 0)
+            {
+                dprintf(STDOUT_FILENO, "%x,", block_Num);
+
+                dprintf(STDOUT_FILENO, "%d,", entry_num);
+                entry_num++;
+
+                dprintf(STDOUT_FILENO, "%x\n", blockNumber2);
+            }
+        }
+
+        // Double indirect
+        entry_num = 0;
+        pread(image_Fd, &buffer_32, 4, validInodes[i] + 40 + (13 * 4));
+        block_Num = buffer_32;
+        for (j = 0; j < super->block_S / 4; j++)
+        {
+            pread(image_Fd, &buffer_32, 4, block_Num * super->block_S + (j * 4));
+            int blockNumber2 = buffer_32;
+            if (blockNumber2 != 0)
+            {
+                dprintf(STDOUT_FILENO, "%x,", block_Num);
+
+                dprintf(STDOUT_FILENO, "%d,", entry_num);
+                entry_num++;
+
+                dprintf(STDOUT_FILENO, "%x\n", blockNumber2);
+            }
+        }
+
+        entry_num = 0;
+        for (j = 0; j < super->block_S / 4; j++)
+        {
+            pread(image_Fd, &buffer_32, 4, block_Num * super->block_S + (j * 4));
+            int blockNumber2 = buffer_32;
+            if (blockNumber2 != 0)
+            {
+                entry_num = 0;
+                int k;
+                for (k = 0; k < super->block_S / 4; k++)
+                {
+                    pread(image_Fd, &buffer_32, 4, blockNumber2 * super->block_S + (k * 4));
+                    int blockNumber3 = buffer_32;
+                    if (blockNumber3 != 0)
+                    {
+                        dprintf(STDOUT_FILENO, "%x,", blockNumber2);
+
+                        dprintf(STDOUT_FILENO, "%d,", entry_num);
+                        entry_num++;
+
+                        dprintf(STDOUT_FILENO, "%x\n", blockNumber3);
+                    }
+                }
+            }
+        }
+
+        // Triple indirect
+        entry_num = 0;
+        pread(image_Fd, &buffer_32, 4, validInodes[i] + 40 + (14 * 4));
+        block_Num = buffer_32;
+        for (j = 0; j < super->block_S / 4; j++)
+        {
+            pread(image_Fd, &buffer_32, 4, block_Num * super->block_S + (j * 4));
+            int blockNumber2 = buffer_32;
+            if (blockNumber2 != 0)
+            {
+                dprintf(STDOUT_FILENO, "%x,", block_Num);
+
+                dprintf(STDOUT_FILENO, "%d,", entry_num);
+                entry_num++;
+
+                dprintf(STDOUT_FILENO, "%x\n", blockNumber2);
+            }
+        }
+
+        entry_num = 0;
+        for (j = 0; j < super->block_S / 4; j++)
+        {
+            pread(image_Fd, &buffer_32, 4, block_Num * super->block_S + (j * 4));
+            int blockNumber2 = buffer_32;
+            if (blockNumber2 != 0)
+            {
+                entry_num = 0;
+                int k;
+                for (k = 0; k < super->block_S / 4; k++)
+                {
+                    pread(image_Fd, &buffer_32, 4, blockNumber2 * super->block_S + (k * 4));
+                    int blockNumber3 = buffer_32;
+                    if (blockNumber3 != 0)
+                    {
+                        dprintf(STDOUT_FILENO, "%x,", blockNumber2);
+
+                        dprintf(STDOUT_FILENO, "%d,", entry_num);
+                        entry_num++;
+
+                        dprintf(STDOUT_FILENO, "%x\n", blockNumber3);
+                    }
+                }
+            }
+        }
+
+        entry_num = 0;
+        for (j = 0; j < super->block_S / 4; j++)
+        {
+            pread(image_Fd, &buffer_32, 4, block_Num * super->block_S + (j * 4));
+            int blockNumber2 = buffer_32;
+            if (blockNumber2 != 0)
+            {
+                entry_num = 0;
+                int k;
+                for (k = 0; k < super->block_S / 4; k++)
+                {
+                    pread(image_Fd, &buffer_32, 4, blockNumber2 * super->block_S + (k * 4));
+                    int blockNumber3 = buffer_32;
+                    if (blockNumber3 != 0)
+                    {
+                        entry_num = 0;
+                        int x;
+                        for (x = 0; x < super->block_S / 4; x++)
+                        {
+                            pread(image_Fd, &buffer_32, 4, blockNumber3 * super->blockSize + (x * 4));
+                            int blockNumber4 = buffer_32;
+                            if (blockNumber4 != 0)
+                            {
+                                dprintf(STDOUT_FILENO, "%x,", blockNumber3);
+
+                                dprintf(STDOUT_FILENO, "%d,", entry_num);
+                                entry_num++;
+
+                                dprintf(STDOUT_FILENO, "%x\n", blockNumber4);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 int main(int argc, char **argv)
