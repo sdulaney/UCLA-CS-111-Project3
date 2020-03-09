@@ -451,7 +451,7 @@ int main(int argc, char **argv)
             break;
 
         case '?':
-            fprintf(stderr, "usage: ./laba [IMAGE FILE NAME]\n");
+            fprintf(stderr, "usage: ./lab3a [IMAGE FILE NAME]\n");
             exit(EXIT_FAILURE);
             break;
 
