@@ -91,13 +91,6 @@ int get_block_offset(int num_blocks)
 // Superblock summary
 void print_superblock()
 {
-    //Read, Write, and execute permission ==> S_IRUSR | S_IWUSR | S_IXUSR ==> S_IRWXU
-    // super_Fd = creat("superFile.csv", S_IRWXU);
-    //Reading from Descriptor with Offset
-    // pread(image_Fd, &buffer_16, 2, SUPER_BLOCK_OFFSET + 56);
-    // super->magicNumber = buffer_16;
-    // dprintf(super_Fd, "%x,", super->m_num);
-
     dprintf(STDOUT_FILENO, "SUPERBLOCK,");
 
     //Counting # of blocks
@@ -120,18 +113,6 @@ void print_superblock()
     super->inode_size = buffer_16;
     dprintf(STDOUT_FILENO, "%d,", super->inode_size);
 
-    // Fragment size
-    // pread(image_Fd, &sBuffer_32, 4, SUPER_BLOCK_OFFSET + 28);
-    // if (sBuffer_32 > 0)
-    // {
-    //     super->fragment_S = 1024 << sBuffer_32;
-    // }
-    // else
-    // {
-    //     super->fragment_S = 1024 >> -sBuffer_32;
-    // }
-    // dprintf(super_Fd, "%d,", super->fragment_S);
-
     // Blocks per group
     pread(image_Fd, &buffer_32, 4, SUPER_BLOCK_OFFSET + 32);
     super->blocks_per_group = buffer_32;
@@ -147,17 +128,9 @@ void print_superblock()
     super->first_non_res_inode = buffer_32;
     dprintf(STDOUT_FILENO, "%d\n", super->first_non_res_inode);
 
-    // Fragments per group
-    // pread(image_Fd, &buffer_32, 4, SUPER_BLOCK_OFFSET + 36);
-    // super->fragments_In_Group = buffer_32;
-    // dprintf(super_Fd, "%d,", super->fragments_In_Group);
-
     // First data block
     pread(image_Fd, &buffer_32, 4, SUPER_BLOCK_OFFSET + 20);
     super->first_data_block = buffer_32;
-
-    // Close csv file
-    // close(super_Fd);
 }
 
 // Free block entries
@@ -203,7 +176,7 @@ void print_dir_entries(int parent_inode_num, int block_num)
 }
 
 // Indirect block references
-void print_indir_block_refs(int inode_num, int indir_block_num, int level_of_indir, int indir_offset)
+void print_indir_block_refs(int inode_num, int indir_block_num, int level_of_indir, int indir_offset, char file_type)
 {
     // Single indirection
     if (level_of_indir == 1)
@@ -216,8 +189,8 @@ void print_indir_block_refs(int inode_num, int indir_block_num, int level_of_ind
         for (i = 0; i < num_blocks; i++) {
             if (block_nums[i] != 0)
             {
-                // if (file_type == 'd')
-                //     print_dir_entries(inode_num, block_nums[i]);
+                if (file_type == 'd')
+                    print_dir_entries(inode_num, block_nums[i]);
                 dprintf(STDOUT_FILENO, "INDIRECT,%d,%d,%d,%d,%d\n", inode_num, level_of_indir, indir_offset + i, indir_block_num, block_nums[i]);
             }
         }
@@ -233,10 +206,8 @@ void print_indir_block_refs(int inode_num, int indir_block_num, int level_of_ind
         for (i = 0; i < num_blocks; i++) {
             if (block_nums[i] != 0)
             {
-                // if (file_type == 'd')
-                //     print_dir_entries(inode_num, block_nums[i]);
                 dprintf(STDOUT_FILENO, "INDIRECT,%d,%d,%d,%d,%d\n", inode_num, level_of_indir, indir_offset + i, indir_block_num, block_nums[i]);
-                print_indir_block_refs(inode_num, block_nums[i], level_of_indir - 1, indir_offset);
+                print_indir_block_refs(inode_num, block_nums[i], level_of_indir - 1, indir_offset, file_type);
             }
         }
         free(block_nums);
@@ -251,10 +222,8 @@ void print_indir_block_refs(int inode_num, int indir_block_num, int level_of_ind
         for (i = 0; i < num_blocks; i++) {
             if (block_nums[i] != 0)
             {
-                // if (file_type == 'd')
-                //     print_dir_entries(inode_num, block_nums[i]);
                 dprintf(STDOUT_FILENO, "INDIRECT,%d,%d,%d,%d,%d\n", inode_num, level_of_indir, indir_offset + i, indir_block_num, block_nums[i]);
-                print_indir_block_refs(inode_num, block_nums[i], level_of_indir - 1, indir_offset);
+                print_indir_block_refs(inode_num, block_nums[i], level_of_indir - 1, indir_offset, file_type);
             }
         }
         free(block_nums);
@@ -325,11 +294,11 @@ void print_inode(int inode_num, int inode_table_block)
             print_dir_entries(inode_num, inode.i_block[i]);
     }
     if (inode.i_block[12] != 0)
-        print_indir_block_refs(inode_num, inode.i_block[12], 1, 12);
+        print_indir_block_refs(inode_num, inode.i_block[12], 1, 12, file_type);
     if (inode.i_block[13] != 0)
-        print_indir_block_refs(inode_num, inode.i_block[13], 2, 256 + 12);
+        print_indir_block_refs(inode_num, inode.i_block[13], 2, 256 + 12, file_type);
     if (inode.i_block[14] != 0)
-        print_indir_block_refs(inode_num, inode.i_block[14], 3, 65536 + 256 + 12);
+        print_indir_block_refs(inode_num, inode.i_block[14], 3, 65536 + 256 + 12, file_type);
 }
 
 // Free I-node entries
@@ -365,10 +334,6 @@ void print_free_inode_entries(int group_num, int inode_bitmap_block)
 // Group summary
 void print_group()
 {
-    // Create csv file
-    // group_Fd = creat("group.csv", S_IRWXU);
-
-    // Calculate number of groups
     int numGroups = ceil((double)super->num_blocks / super->blocks_per_group);
     int remainder = super->num_blocks % super->blocks_per_group;
 
@@ -405,11 +370,6 @@ void print_group()
         group[i].free_num_inodes = buffer_16;
         dprintf(STDOUT_FILENO, "%d,", group[i].free_num_inodes);
 
-        // Number of directories
-        // pread(image_Fd, &buffer_16, 2, SUPER_BLOCK_OFFSET + SUPER_BLOCK_SIZE + (i * GROUP_DESCRIPTOR_TABLE_SIZE) + 16);
-        // group[i].directory_Num = buffer_16;
-        // dprintf(group_Fd, "%d,", group[i].directory_Num);
-
         // Free block bitmap block
         pread(image_Fd, &buffer_32, 4, SUPER_BLOCK_OFFSET + SUPER_BLOCK_SIZE + (i * GROUP_DESCRIPTOR_TABLE_SIZE) + 0);
         group[i].block_bitmap_block = buffer_32;
@@ -428,9 +388,6 @@ void print_group()
         print_free_block_entries(i, group[i].block_bitmap_block);
         print_free_inode_entries(i, group[i].inode_bitmap_block);
     }
-
-    // Close csv file
-    // close(group_Fd);
 }
 
 int main(int argc, char **argv)
@@ -452,7 +409,6 @@ int main(int argc, char **argv)
         if (c == -1)
             break;
 
-        // const char *name = long_options[option_index].name;
         switch (c)
         {
         case 0:
