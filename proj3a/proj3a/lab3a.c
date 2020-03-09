@@ -202,6 +202,26 @@ void print_dir_entries(int parent_inode_num, int block_num)
     }
 }
 
+// Indirect block references
+void print_indir_block_refs(int inode_num, int indir_block_num)
+{
+    // Single indirect
+    uint32_t* block_nums = malloc(super->block_size);
+    int num_blocks = super->block_size / sizeof(uint32_t);
+    unsigned long long offset = get_block_offset(indir_block_num);
+    pread(image_Fd, block_nums, super->block_size, offset);
+    int i;
+    for (i = 0; i < num_blocks; i++) {
+        if (block_nums[i] != 0)
+        {
+            // if (file_type == 'd')
+            //     print_dir_entries(inode_num, block_nums[i]);
+            dprintf(STDOUT_FILENO, "INDIRECT,%d,%d,%d,%d,%d\n", inode_num, 1, 12 + i, indir_block_num, block_nums[i]);
+        }
+    }
+    free(block_nums);
+}
+
 // I-node summary
 void print_inode(int inode_num, int inode_table_block)
 {
@@ -265,6 +285,8 @@ void print_inode(int inode_num, int inode_table_block)
         if (file_type == 'd' && inode.i_block[i] != 0)
             print_dir_entries(inode_num, inode.i_block[i]);
     }
+    if (inode.i_block[12] != 0)
+        print_indir_block_refs(inode_num, inode.i_block[12]);
 }
 
 // Free I-node entries
@@ -366,164 +388,6 @@ void print_group()
 
     // Close csv file
     // close(group_Fd);
-}
-
-// Indirect block references
-void print_indir_block_refs()
-{
-    int entry_num = 0;
-
-    // Loop through valid inodes
-    int i;
-    for (i = 0; i < valid_Inode_Num; i++)
-    {
-
-        // Single indirect
-        entry_num = 0;
-        pread(image_Fd, &buffer_32, 4, validInodes[i] + 40 + (12 * 4));
-        int block_Num = buffer_32;
-        int j;
-        for (j = 0; j < super->block_S / 4; j++)
-        {
-            pread(image_Fd, &buffer_32, 4, block_Num * super->block_S + (j * 4));
-            int blockNumber2 = buffer_32;
-            if (blockNumber2 != 0)
-            {
-                dprintf(STDOUT_FILENO, "%x,", block_Num);
-
-                dprintf(STDOUT_FILENO, "%d,", entry_num);
-                entry_num++;
-
-                dprintf(STDOUT_FILENO, "%x\n", blockNumber2);
-            }
-        }
-
-        // Double indirect
-        entry_num = 0;
-        pread(image_Fd, &buffer_32, 4, validInodes[i] + 40 + (13 * 4));
-        block_Num = buffer_32;
-        for (j = 0; j < super->block_S / 4; j++)
-        {
-            pread(image_Fd, &buffer_32, 4, block_Num * super->block_S + (j * 4));
-            int blockNumber2 = buffer_32;
-            if (blockNumber2 != 0)
-            {
-                dprintf(STDOUT_FILENO, "%x,", block_Num);
-
-                dprintf(STDOUT_FILENO, "%d,", entry_num);
-                entry_num++;
-
-                dprintf(STDOUT_FILENO, "%x\n", blockNumber2);
-            }
-        }
-
-        entry_num = 0;
-        for (j = 0; j < super->block_S / 4; j++)
-        {
-            pread(image_Fd, &buffer_32, 4, block_Num * super->block_S + (j * 4));
-            int blockNumber2 = buffer_32;
-            if (blockNumber2 != 0)
-            {
-                entry_num = 0;
-                int k;
-                for (k = 0; k < super->block_S / 4; k++)
-                {
-                    pread(image_Fd, &buffer_32, 4, blockNumber2 * super->block_S + (k * 4));
-                    int blockNumber3 = buffer_32;
-                    if (blockNumber3 != 0)
-                    {
-                        dprintf(STDOUT_FILENO, "%x,", blockNumber2);
-
-                        dprintf(STDOUT_FILENO, "%d,", entry_num);
-                        entry_num++;
-
-                        dprintf(STDOUT_FILENO, "%x\n", blockNumber3);
-                    }
-                }
-            }
-        }
-
-        // Triple indirect
-        entry_num = 0;
-        pread(image_Fd, &buffer_32, 4, validInodes[i] + 40 + (14 * 4));
-        block_Num = buffer_32;
-        for (j = 0; j < super->block_S / 4; j++)
-        {
-            pread(image_Fd, &buffer_32, 4, block_Num * super->block_S + (j * 4));
-            int blockNumber2 = buffer_32;
-            if (blockNumber2 != 0)
-            {
-                dprintf(STDOUT_FILENO, "%x,", block_Num);
-
-                dprintf(STDOUT_FILENO, "%d,", entry_num);
-                entry_num++;
-
-                dprintf(STDOUT_FILENO, "%x\n", blockNumber2);
-            }
-        }
-
-        entry_num = 0;
-        for (j = 0; j < super->block_S / 4; j++)
-        {
-            pread(image_Fd, &buffer_32, 4, block_Num * super->block_S + (j * 4));
-            int blockNumber2 = buffer_32;
-            if (blockNumber2 != 0)
-            {
-                entry_num = 0;
-                int k;
-                for (k = 0; k < super->block_S / 4; k++)
-                {
-                    pread(image_Fd, &buffer_32, 4, blockNumber2 * super->block_S + (k * 4));
-                    int blockNumber3 = buffer_32;
-                    if (blockNumber3 != 0)
-                    {
-                        dprintf(STDOUT_FILENO, "%x,", blockNumber2);
-
-                        dprintf(STDOUT_FILENO, "%d,", entry_num);
-                        entry_num++;
-
-                        dprintf(STDOUT_FILENO, "%x\n", blockNumber3);
-                    }
-                }
-            }
-        }
-
-        entry_num = 0;
-        for (j = 0; j < super->block_S / 4; j++)
-        {
-            pread(image_Fd, &buffer_32, 4, block_Num * super->block_S + (j * 4));
-            int blockNumber2 = buffer_32;
-            if (blockNumber2 != 0)
-            {
-                entry_num = 0;
-                int k;
-                for (k = 0; k < super->block_S / 4; k++)
-                {
-                    pread(image_Fd, &buffer_32, 4, blockNumber2 * super->block_S + (k * 4));
-                    int blockNumber3 = buffer_32;
-                    if (blockNumber3 != 0)
-                    {
-                        entry_num = 0;
-                        int x;
-                        for (x = 0; x < super->block_S / 4; x++)
-                        {
-                            pread(image_Fd, &buffer_32, 4, blockNumber3 * super->blockSize + (x * 4));
-                            int blockNumber4 = buffer_32;
-                            if (blockNumber4 != 0)
-                            {
-                                dprintf(STDOUT_FILENO, "%x,", blockNumber3);
-
-                                dprintf(STDOUT_FILENO, "%d,", entry_num);
-                                entry_num++;
-
-                                dprintf(STDOUT_FILENO, "%x\n", blockNumber4);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
 }
 
 int main(int argc, char **argv)
