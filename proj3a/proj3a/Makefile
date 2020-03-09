@@ -20,4 +20,3 @@ dist: clean
 clean:
 	-rm lab3a
 	-rm lab$(LAB)-904-064-791.tar.gz
-
