@@ -60,6 +60,10 @@ void parsing_arg(int argc, char **argv)
     if (argc == 2)
     {
         file_Name = malloc((strlen(argv[1]) + 1) * sizeof(char));
+        if (file_Name == NULL) {
+            fprintf(stderr, "Error allocating memory.\n");
+            exit(2);
+        }
         file_Name = argv[1];
     }
 
@@ -74,7 +78,15 @@ void parsing_arg(int argc, char **argv)
 void alloc_mem() //Allocating memory as well as opening the read only image
 {
     super = malloc(sizeof(struct super_block_t));
+    if (super == NULL) {
+        fprintf(stderr, "Error allocating memory.\n");
+        exit(2);
+    }
     group = malloc(sizeof(struct block_group_t));
+    if (group == NULL) {
+        fprintf(stderr, "Error allocating memory.\n");
+        exit(2);
+    }
     image_Fd = open(file_Name, O_RDONLY);
     if (image_Fd == -1)
     {
@@ -139,6 +151,10 @@ void print_free_block_entries(int group_num, int block_bitmap_block)
     // 1 means “used” and 0 “free/available”
     int num_bytes = ceil((double) group[group_num].num_blocks / 8) * sizeof(char);
     char* buf = malloc(num_bytes);
+    if (buf == NULL) {
+        fprintf(stderr, "Error allocating memory.\n");
+        exit(2);
+    }
     unsigned long long curr_block = 1;
     unsigned long long offset = get_block_offset(block_bitmap_block);
     pread(image_Fd, buf, num_bytes, offset);
@@ -182,6 +198,10 @@ void print_indir_block_refs(int inode_num, int indir_block_num, int level_of_ind
     if (level_of_indir == 1)
     {
         uint32_t* block_nums = malloc(super->block_size);
+        if (block_nums == NULL) {
+            fprintf(stderr, "Error allocating memory.\n");
+            exit(2);
+        }
         int num_blocks = super->block_size / sizeof(uint32_t);
         unsigned long long offset = get_block_offset(indir_block_num);
         pread(image_Fd, block_nums, super->block_size, offset);
@@ -199,6 +219,10 @@ void print_indir_block_refs(int inode_num, int indir_block_num, int level_of_ind
     // Double indirection
     else if (level_of_indir == 2) {
         uint32_t* block_nums = malloc(super->block_size);
+        if (block_nums == NULL) {
+            fprintf(stderr, "Error allocating memory.\n");
+            exit(2);
+        }
         int num_blocks = super->block_size / sizeof(uint32_t);
         unsigned long long offset = get_block_offset(indir_block_num);
         pread(image_Fd, block_nums, super->block_size, offset);
@@ -215,6 +239,10 @@ void print_indir_block_refs(int inode_num, int indir_block_num, int level_of_ind
     // Triple indirection
     else if (level_of_indir == 3) {
         uint32_t* block_nums = malloc(super->block_size);
+        if (block_nums == NULL) {
+            fprintf(stderr, "Error allocating memory.\n");
+            exit(2);
+        }
         int num_blocks = super->block_size / sizeof(uint32_t);
         unsigned long long offset = get_block_offset(indir_block_num);
         pread(image_Fd, block_nums, super->block_size, offset);
@@ -307,6 +335,10 @@ void print_free_inode_entries(int group_num, int inode_bitmap_block)
     // 1 means “used” and 0 “free/available”
     int num_bytes = ceil((double) group[group_num].num_inodes / 8) * sizeof(char);
     char* buf = malloc(num_bytes);
+    if (buf == NULL) {
+        fprintf(stderr, "Error allocating memory.\n");
+        exit(2);
+    }
     unsigned long long curr_inode = 1;
     unsigned long long offset = get_block_offset(inode_bitmap_block);
     pread(image_Fd, buf, num_bytes, offset);
@@ -338,6 +370,10 @@ void print_group()
     int remainder = super->num_blocks % super->blocks_per_group;
 
     group = malloc(numGroups * sizeof(struct block_group_t));
+    if (group == NULL) {
+        fprintf(stderr, "Error allocating memory.\n");
+        exit(2);
+    }
 
     int i;
     for (i = 0; i < numGroups; i++)
