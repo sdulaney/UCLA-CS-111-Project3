@@ -1,9 +1,9 @@
 # NAME: Stewart Dulaney,Pariya Samandi
 # EMAIL: sdulaney@ucla.edu,pari.samandi@gmail.com
-# ID: 904-064-791,205-092-357
+# ID: 904064791,205092357
 
 CC = python3
-ID = 904-064-791
+ID = 904064791
 LAB = 3b
 ARCHIVE = lab$(LAB)-$(ID).tar.gz
 sources = lab$(LAB).py Makefile README
@@ -17,4 +17,4 @@ dist: clean
 	tar -czf $(ARCHIVE) $(sources)
 
 clean:
-	-rm lab$(LAB)-904-064-791.tar.gz
+	-rm $(ARCHIVE)
