@@ -4,4 +4,4 @@
 
 #!/bin/sh
 
-python3 lab3b.py
+python3 lab3b.py $@

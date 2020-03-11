@@ -42,9 +42,11 @@ class Ext2Group:
 # class Ext2Block:
 # 	def __init__(self):
 
-# TODO
-# class Ext2Inode:
-# 	def __init__(self):
+class Ext2Inode:
+	def __init__(self, inode_num, link_count):
+		self.inode_num = inode_num
+		self.link_count = link_count
+		# TODO
 
 # TODO
 # class Ext2Directory:
@@ -53,12 +55,11 @@ class Ext2Group:
 class Ext2Image:
 	def __init__(self, filename):
 		self.rows = []
-		self.superblock = None
+		# self.superblock = None
 		self.group = None
 		self.blocks_on_freelist = set()
 		self.inodes_on_freelist = set()
 		self.inodes_alloc = dict()
-
 		self.read_csv(filename)
 		self.parse_csv()
 	def read_csv(self, filename):
@@ -77,7 +78,8 @@ class Ext2Image:
 				self.blocks_on_freelist.add(int(row[1]))
 			if row[0] == "IFREE":
 				self.inodes_on_freelist.add(int(row[1]))
-			# if row[0] == "INODE":
+			if row[0] == "INODE":
+				self.inodes_alloc[int(row[1])] = Ext2Inode(int(row[1]), int(row[6]))
 				# TODO
 			# if row[0] == "DIRENT":
 				# TODO
@@ -143,15 +145,20 @@ class Ext2Checker:
 	# Block Consistency Audits
 	def find_block_errors(self):
 		# TODO
-		print("find_block_errors")
+		pass
 	# I-node Allocation Audits
 	def find_inode_errors(self):
 		# TODO
-		print("find_inode_errors")
+		for key in self.img.inodes_alloc:
+			if key in self.img.inodes_on_freelist:
+				self.msg_handler.inode_alloc_on_freelist_error(key)
+		for inode_num in range(11, self.img.superblock.inodes_count + 1):
+			if inode_num not in self.img.inodes_alloc and inode_num not in self.img.inodes_on_freelist:
+				self.msg_handler.inode_unalloc_not_on_freelist_error(inode_num)
 	# Directory Consistency Audits
 	def find_dir_errors(self):
 		# TODO
-		print("find_dir_errors")
+		pass
 	def find_all_errors(self):
 		self.find_block_errors()
 		self.find_inode_errors()
@@ -159,7 +166,7 @@ class Ext2Checker:
 
 def main():
 	# TODO: add error checking for no arguments, too many arguments, invalid arguments or unable to open required files
-	checker = Ext2Checker(sys.argv[0])
+	checker = Ext2Checker(sys.argv[1])
 	checker.find_all_errors()
 
 if __name__ == "__main__":
