@@ -4,72 +4,164 @@
 
 #!/usr/bin/env python3
 
-
 #To Do based on TA discussion:
 #Save the .csv in a structure/class
 #Create a class or a function that prints out and formats all possible error messages
 #Refer to the .csv and that function a lot
 #Report on inconsistencies & errors on inodes, blocks, directories
 
-
-
 import sys, string, locale, csv
 
-def lists_init():
-	#List of map block numbers 
-	map_block_num = []
-	map_inode_num = []
-	with open("group.csv", "r") as file_1:
-		for line in file_1:
-			group_line = line.rstrip('\n').split(',')
-			map_block_num.append(group_line[5])
-			map_inode_num.append(group_line[4])
+class Ext2SuperBlock:
+	def __init__(self, blocks_count, inodes_count, block_size, inode_size, blocks_per_group, inodes_per_group, first_nonres_inode):
+		self.blocks_count = blocks_count				# total number of blocks (decimal)
+		self.inodes_count = inodes_count				# total number of i-nodes (decimal)
+		self.block_size = block_size					# block size (in bytes, decimal)
+		self.inode_size = inode_size					# i-node size (in bytes, decimal)
+		self.blocks_per_group = blocks_per_group		# blocks per group (decimal)
+		self.inodes_per_group = inodes_per_group		# i-nodes per group (decimal)
+		self.first_nonres_inode = first_nonres_inode	# first non-reserved i-node (decimal)
+	def __str__(self):
+		return str(self.__class__) + ": " + str(self.__dict__)
 
-	#List of free blocks & inodes
-	free_blocks = []
-	free_inodes = []
-	with open("bitmap.csv", "r") as file_2:
-		for line in file_2:
-			bitmap_l = line.rstrip('\n').split(',')
-			if(bitmap_l[0] in map_block_num):
-				free_blocks.append(int(bitmap_l[1]))
-			if(bitmap_l[0] in map_inode_num):
-				free_inodes.append(int(bitmap_l[1]))
+class Ext2Group:
+	def __init__(self, group_num, block_count, inode_count, free_block_count, free_inode_count, block_bitmap, inode_bitmap, inode_table):
+		self.group_num = group_num						# group number (decimal, starting from zero)
+		self.block_count = block_count					# total number of blocks in this group (decimal)
+		self.inode_count = inode_count					# total number of i-nodes in this group (decimal)
+		self.free_block_count = free_block_count		# number of free blocks (decimal)
+		self.free_inode_count = free_inode_count		# number of free i-nodes (decimal)
+		self.block_bitmap = block_bitmap				# block number of free block bitmap for this group (decimal)
+		self.inode_bitmap = inode_bitmap				# block number of free i-node bitmap for this group (decimal)
+		self.inode_table = inode_table					# block number of first block of i-nodes in this group (decimal)
 
-	#Important info from super block
-	block_s = 0
-	total_inodes = 0
-	inodes_in_group = 0
-	total_blocks = 0
-	with open("super.csv", "r") as file_3:
-		for line in file_3:
-			super_line = line.rstrip('\n').split(',')
-			total_blocks = int(super_line[2])
-			block_s = int(super_line[3])
-			total_inodes = int(super_line[1])
-			inodes_in_group = int(super_line[6])
+	def __str__(self):
+		return str(self.__class__) + ": " + str(self.__dict__)
 
-	#Return a tuple of lists to be able to index into to get the respective values
-	return (free_blocks, free_inodes, map_block_num, map_inode_num, block_s, total_inodes, inodes_in_group, total_blocks)
+# TODO
+# class Ext2Block:
+# 	def __init__(self):
 
+# TODO
+# class Ext2Inode:
+# 	def __init__(self):
 
-def block_errors(out_file):
-    ...
-def duplicate_allocated_blocks(out_file):
-    ...
+# TODO
+# class Ext2Directory:
+# 	def __init__(self):
 
-def unallocated_inode(directory_file, out_file):
-    ...
-def missing_inode(inode_file, out_file):
-    ...
-def incorrect_link_count(inode_file, out_file):
-    ...
-def incorrect_directory_entry(directory_file, out_file):
-    ...
-def open_files():
-    ...
-def close_files():
-    ...
+class Ext2Image:
+	def __init__(self, filename):
+		self.rows = []
+		self.superblock = None
+		self.group = None
+		self.blocks_on_freelist = set()
+		self.inodes_on_freelist = set()
+		self.inodes_alloc = dict()
+
+		self.read_csv(filename)
+		self.parse_csv()
+	def read_csv(self, filename):
+		with open(filename, "r") as csvfile:
+			csvreader = csv.reader(csvfile)
+			for row in csvreader:
+				if any(x.strip() for x in row):			# handle empty lines
+					self.rows.append([x.strip(' ') for x in row]) # handle leading/trailing whitespace in cells
+	def parse_csv(self):
+		for row in self.rows:
+			if row[0] == "SUPERBLOCK":
+				self.superblock = Ext2SuperBlock(int(row[1]), int(row[2]), int(row[3]), int(row[4]), int(row[5]), int(row[6]), int(row[7]))
+			if row[0] == "GROUP":
+				self.group = Ext2Group(int(row[1]), int(row[2]), int(row[3]), int(row[4]), int(row[5]), int(row[6]), int(row[7]), int(row[8]))
+			if row[0] == "BFREE":
+				self.blocks_on_freelist.add(int(row[1]))
+			if row[0] == "IFREE":
+				self.inodes_on_freelist.add(int(row[1]))
+			# if row[0] == "INODE":
+				# TODO
+			# if row[0] == "DIRENT":
+				# TODO
+			# if row[0] == "INDIRECT":
+				# TODO
+
+class Ext2ErrorMsgHandler:
+	def __init__(self):
+		pass
+	# Block Consistency Errors
+	def block_invalid_error(self, block_num, inode_num, offset, level_of_indir):
+		indir_str = ""							# assume level_of_indir = 0 means no indirection
+		if level_of_indir == 1:
+			indir_str = "INDIRECT "
+		elif level_of_indir == 2:
+			indir_str = "DOUBLE INDIRECT "
+		elif level_of_indir == 3:
+			indir_str = "TRIPLE INDIRECT "
+		sys.stdout.write(f"INVALID {indir_str}BLOCK {block_num} IN INODE {inode_num} AT OFFSET {offset}\n")
+	def block_reserved_error(self, block_num, inode_num, offset, level_of_indir):
+		indir_str = ""							# assume level_of_indir = 0 means no indirection
+		if level_of_indir == 1:
+			indir_str = "INDIRECT "
+		elif level_of_indir == 2:
+			indir_str = "DOUBLE INDIRECT "
+		elif level_of_indir == 3:
+			indir_str = "TRIPLE INDIRECT "
+		sys.stdout.write(f"RESERVED {indir_str}BLOCK {block_num} IN INODE {inode_num} AT OFFSET {offset}\n")
+	def block_unref_and_used_error(self, block_num):
+		sys.stdout.write(f"UNREFERENCED BLOCK {block_num}\n")
+	def block_alloc_and_free_error(self, block_num):
+		sys.stdout.write(f"ALLOCATED BLOCK {block_num} ON FREELIST\n")
+	def block_duplicate_error(self, block_num, inode_num, offset, level_of_indir):
+		indir_str = ""							# assume level_of_indir = 0 means no indirection
+		if level_of_indir == 1:
+			indir_str = "INDIRECT "
+		elif level_of_indir == 2:
+			indir_str = "DOUBLE INDIRECT "
+		elif level_of_indir == 3:
+			indir_str = "TRIPLE INDIRECT "
+		sys.stdout.write(f"DUPLICATE {indir_str}BLOCK {block_num} IN INODE {inode_num} AT OFFSET {offset}\n")
+	# Inode Allocation Errors
+	def inode_alloc_on_freelist_error(self, inode_num):
+		sys.stdout.write(f"ALLOCATED INODE {inode_num} ON FREELIST\n")
+	def inode_unalloc_not_on_freelist_error(self, inode_num):
+		sys.stdout.write(f"UNALLOCATED INODE {inode_num} NOT ON FREELIST\n")
+	# Directory Consistency Errors
+	def dir_incorrect_link_count_error(self, inode_num, ref_count, link_count):
+		sys.stdout.write(f"INODE {inode_num} HAS {ref_count} LINKS BUT LINKCOUNT IS {link_count}\n")
+	def dir_unalloc_inode_error(self, dir_num, name, inode_num):
+		sys.stdout.write(f"DIRECTORY INODE {dir_num} NAME '{name}' UNALLOCATED INODE {inode_num}\n")
+	def dir_invalid_inode_error(self, dir_num, name, inode_num):
+		sys.stdout.write(f"DIRECTORY INODE {dir_num} NAME '{name}' INVALID INODE {inode_num}\n")
+	def dir_invalid_parent_link_error(self, dir_num, inode_num, correct_inode_num):
+		sys.stdout.write(f"DIRECTORY INODE {dir_num} NAME '..' LINK TO INODE {inode_num} SHOULD BE {correct_inode_num}\n")
+	def dir_invalid_self_link_error(self, dir_num, inode_num, correct_inode_num):
+		sys.stdout.write(f"DIRECTORY INODE {dir_num} NAME '.' LINK TO INODE {inode_num} SHOULD BE {correct_inode_num}\n")
+
+class Ext2Checker:
+	def __init__(self, filename):
+		self.img = Ext2Image(filename)
+		self.msg_handler = Ext2ErrorMsgHandler()
+	# Block Consistency Audits
+	def find_block_errors(self):
+		# TODO
+		print("find_block_errors")
+	# I-node Allocation Audits
+	def find_inode_errors(self):
+		# TODO
+		print("find_inode_errors")
+	# Directory Consistency Audits
+	def find_dir_errors(self):
+		# TODO
+		print("find_dir_errors")
+	def find_all_errors(self):
+		self.find_block_errors()
+		self.find_inode_errors()
+		self.find_dir_errors()
+
 def main():
-    ...
+	# TODO: add error checking for no arguments, too many arguments, invalid arguments or unable to open required files
+	checker = Ext2Checker(sys.argv[0])
+	checker.find_all_errors()
+
+if __name__ == "__main__":
+    main()
     
