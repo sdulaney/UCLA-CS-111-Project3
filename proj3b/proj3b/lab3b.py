@@ -13,7 +13,7 @@
 
 
 
-import sys, string, locale
+import sys, string, locale, csv
 
 def lists_init():
 	#List of map block numbers 

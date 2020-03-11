@@ -6,15 +6,16 @@ CC = python3
 ID = 904064791
 LAB = 3b
 ARCHIVE = lab$(LAB)-$(ID).tar.gz
-sources = lab$(LAB).py Makefile README
+sources = lab$(LAB).py lab$(LAB).sh Makefile README
 
 build: lab$(LAB)
 
 lab$(LAB):
-	$(CC) lab$(LAB).py
+	-ln lab$(LAB).sh lab$(LAB)
+	-chmod +x lab$(LAB)
 
 dist: clean
-	tar -czf $(ARCHIVE) $(sources)
+	-tar -czf $(ARCHIVE) $(sources)
 
 clean:
 	-rm $(ARCHIVE)
