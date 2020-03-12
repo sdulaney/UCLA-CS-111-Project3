@@ -39,8 +39,9 @@ class Ext2Group:
 		return str(self.__class__) + ": " + str(self.__dict__)
 
 # TODO
-# class Ext2Block:
-# 	def __init__(self):
+class Ext2Block:
+	def __init__(self):
+        return self.first_nonres_inode + (128*self.inodes_count-1)/self.block_size+1
 
 class Ext2Inode:
 	def __init__(self, inode_num, link_count):
@@ -166,7 +167,21 @@ class Ext2Checker:
 
 def main():
 	# TODO: add error checking for no arguments, too many arguments, invalid arguments or unable to open required files
-	checker = Ext2Checker(sys.argv[1])
+	if (len(sys.argv) != 2):
+        print >> sys.stderr, 'Invalid arguments'
+        sys.exit(1)
+    try:
+        with open(sys.argv[1], 'r') as file:
+            check = csv.reader(file, delimiter=',')
+    except:
+        print >> sys.stderr, 'Unable to open required files'
+        sys.exit(1)
+    
+    
+    
+    
+    
+    checker = Ext2Checker(sys.argv[1])
 	checker.find_all_errors()
 
 if __name__ == "__main__":
