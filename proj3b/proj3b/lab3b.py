@@ -165,7 +165,7 @@ class Ext2Checker:
 		self.find_dir_errors()
 
 def main():
-	# TODO: add error checking for no arguments, too many arguments, invalid arguments or unable to open required files
+	# TODO: add error checking for no arguments, too many arguments, invalid arguments or unable to open required files: https://piazza.com/class/k4x6oonkcge2mj
 	checker = Ext2Checker(sys.argv[1])
 	checker.find_all_errors()
 
