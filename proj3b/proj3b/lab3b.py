@@ -41,7 +41,7 @@ class Ext2Group:
 # TODO
 class Ext2Block:
 	def __init__(self):
-        return self.first_nonres_inode + (128*self.inodes_count-1)/self.block_size+1
+		return self.first_nonres_inode + (128*self.inodes_count-1)/self.block_size+1
 
 class Ext2Inode:
 	def __init__(self, inode_num, link_count):
@@ -166,25 +166,18 @@ class Ext2Checker:
 		self.find_dir_errors()
 
 def main():
-
-    checker = Ext2Checker(sys.argv[1])
-    checker.find_all_errors()
-# TODO: add error checking for no arguments, too many arguments, invalid arguments or unable to open required files: https://piazza.com/class/k4x6oonkcge2mj
-   
-    if (len(sys.argv) != 2):
-        print >> sys.stderr, 'Invalid arguments'
-        sys.exit(1)
-    try:
-        with open(sys.argv[1], 'r') as file:
-            check = csv.reader(file, delimiter=',')
-    except:
-        print >> sys.stderr, 'Unable to open required files'
-        sys.exit(1)
+	# TODO: add error checking for no arguments, too many arguments, invalid arguments or unable to open required files: https://piazza.com/class/k4x6oonkcge2mj
+	if (len(sys.argv) != 2):
+		sys.stderr.write("Error: invalid number of arguments.\nusage: ./lab3b [CSV FILE NAME]\n")
+		sys.exit(1)
+	try:
+		with open(sys.argv[1], 'r') as file:
+			check = csv.reader(file, delimiter=',')
+	except:
+		sys.stderr.write("Error: unable to open required file.\n")
+		sys.exit(1)
+	checker = Ext2Checker(sys.argv[1])
+	checker.find_all_errors()
     
-
-if __name__ == "__main__":
-    main()
-    
-
 if __name__ == "__main__":
     main()
