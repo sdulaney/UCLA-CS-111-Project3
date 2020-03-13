@@ -44,14 +44,24 @@ class Ext2Block:
 		return self.first_nonres_inode + (128*self.inodes_count-1)/self.block_size+1
 
 class Ext2Inode:
-	def __init__(self, inode_num, link_count):
+	def __init__(self, inode_num, link_count, file_type):
 		self.inode_num = inode_num
 		self.link_count = link_count
-		# TODO
+		self.file_type = file_type
+		self.block_ptrs = []
+		# TODO	
 
 # TODO
 # class Ext2Directory:
 # 	def __init__(self):
+
+class Ext2IndirBlockRef:
+	def __init__(self, inode_num, level_of_indir, logical_block_offset, indir_block_num, refd_block_num):
+		self.inode_num = inode_num
+		self.level_of_indir = level_of_indir
+		self.logical_block_offset = logical_block_offset
+		self.indir_block_num = indir_block_num
+		self.refd_block_num = refd_block_num
 
 class Ext2Image:
 	def __init__(self, filename):
@@ -61,6 +71,7 @@ class Ext2Image:
 		self.blocks_on_freelist = set()
 		self.inodes_on_freelist = set()
 		self.inodes_alloc = dict()
+		self.indir_block_refs = []
 		self.read_csv(filename)
 		self.parse_csv()
 	def read_csv(self, filename):
@@ -80,12 +91,14 @@ class Ext2Image:
 			if row[0] == "IFREE":
 				self.inodes_on_freelist.add(int(row[1]))
 			if row[0] == "INODE":
-				self.inodes_alloc[int(row[1])] = Ext2Inode(int(row[1]), int(row[6]))
+				self.inodes_alloc[int(row[1])] = Ext2Inode(int(row[1]), int(row[6]), row[2])
+				for i in range(12,27):
+					self.inodes_alloc[int(row[1])].block_ptrs.append(int(row[i]))
 				# TODO
 			# if row[0] == "DIRENT":
 				# TODO
-			# if row[0] == "INDIRECT":
-				# TODO
+			if row[0] == "INDIRECT":
+				self.indir_block_refs.append(Ext2IndirBlockRef(int(row[1]), int(row[2]), int(row[3]), int(row[4]), int(row[5])))
 
 class Ext2ErrorMsgHandler:
 	def __init__(self):
@@ -93,13 +106,17 @@ class Ext2ErrorMsgHandler:
 	# Block Consistency Errors
 	def block_invalid_error(self, block_num, inode_num, offset, level_of_indir):
 		indir_str = ""							# assume level_of_indir = 0 means no indirection
+		indir_offset = 0
 		if level_of_indir == 1:
 			indir_str = "INDIRECT "
+			indir_offset = 12
 		elif level_of_indir == 2:
 			indir_str = "DOUBLE INDIRECT "
+			indir_offset = 256 + 12
 		elif level_of_indir == 3:
 			indir_str = "TRIPLE INDIRECT "
-		sys.stdout.write(f"INVALID {indir_str}BLOCK {block_num} IN INODE {inode_num} AT OFFSET {offset}\n")
+			indir_offset = 65536 + 256 + 12
+		sys.stdout.write(f"INVALID {indir_str}BLOCK {block_num} IN INODE {inode_num} AT OFFSET {offset + indir_offset}\n")
 	def block_reserved_error(self, block_num, inode_num, offset, level_of_indir):
 		indir_str = ""							# assume level_of_indir = 0 means no indirection
 		if level_of_indir == 1:
@@ -145,8 +162,13 @@ class Ext2Checker:
 		self.msg_handler = Ext2ErrorMsgHandler()
 	# Block Consistency Audits
 	def find_block_errors(self):
+		# TODO: handle different file types
+		for inode in self.img.inodes_alloc.values():
+			if inode.file_type == 'f' or inode.file_type == 'd':
+				for i in range(0,12):
+					if inode.block_ptrs[i] < 0 or inode.block_ptrs[i] > self.img.superblock.blocks_count:		# block group 0 starts with block 1 on 1KB block systems
+						self.msg_handler.block_invalid_error(inode.block_ptrs[i], inode.inode_num, i, 0)
 		# TODO
-		pass
 	# I-node Allocation Audits
 	def find_inode_errors(self):
 		# TODO
