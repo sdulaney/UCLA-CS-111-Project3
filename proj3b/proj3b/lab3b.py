@@ -44,10 +44,18 @@ class Ext2Block:
 		return self.first_nonres_inode + (128*self.inodes_count-1)/self.block_size+1
 
 class Ext2Inode:
-	def __init__(self, inode_num, link_count, file_type):
+	def __init__(self, inode_num, file_type, mode, owner, group, link_count, ctime, mtime, atime, file_size, num_512_blocks):
 		self.inode_num = inode_num
-		self.link_count = link_count
 		self.file_type = file_type
+		self.mode = mode
+		self.owner = owner
+		self.group = group
+		self.link_count = link_count
+		self.ctime = ctime
+		self.mtime = mtime
+		self.atime = atime
+		self.file_size = file_size
+		self.num_512_blocks = num_512_blocks
 		self.block_ptrs = []
 		# TODO	
 
@@ -91,7 +99,7 @@ class Ext2Image:
 			if row[0] == "IFREE":
 				self.inodes_on_freelist.add(int(row[1]))
 			if row[0] == "INODE":
-				self.inodes_alloc[int(row[1])] = Ext2Inode(int(row[1]), int(row[6]), row[2])
+				self.inodes_alloc[int(row[1])] = Ext2Inode(int(row[1]), row[2], int(row[3]), int(row[4]), int(row[5]), int(row[6]), row[7], row[8], row[9], int(row[10]), int(row[11]))
 				for i in range(12,27):
 					self.inodes_alloc[int(row[1])].block_ptrs.append(int(row[i]))
 				# TODO
@@ -163,7 +171,7 @@ class Ext2Checker:
 	def find_block_errors(self):
 		# TODO: handle different file types
 		for inode in self.img.inodes_alloc.values():
-			if inode.file_type == 'f' or inode.file_type == 'd':
+			if (inode.file_type == 'f') or (inode.file_type == 'd') or (file_type == 's' and inode.file_size > 60):
 				for i in range(0,12):
 					if inode.block_ptrs[i] < 0 or inode.block_ptrs[i] > self.img.superblock.blocks_count:		# block group 0 starts with block 1 on 1KB block systems
 						self.msg_handler.block_invalid_error(inode.block_ptrs[i], inode.inode_num, i, 0)
