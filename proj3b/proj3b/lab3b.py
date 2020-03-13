@@ -109,13 +109,12 @@ class Ext2ErrorMsgHandler:
 		indir_offset = 0
 		if level_of_indir == 1:
 			indir_str = "INDIRECT "
-			indir_offset = 12
 		elif level_of_indir == 2:
 			indir_str = "DOUBLE INDIRECT "
-			indir_offset = 256 + 12
+			indir_offset = 255
 		elif level_of_indir == 3:
 			indir_str = "TRIPLE INDIRECT "
-			indir_offset = 65536 + 256 + 12
+			indir_offset = 65535 + 255
 		sys.stdout.write(f"INVALID {indir_str}BLOCK {block_num} IN INODE {inode_num} AT OFFSET {offset + indir_offset}\n")
 	def block_reserved_error(self, block_num, inode_num, offset, level_of_indir):
 		indir_str = ""							# assume level_of_indir = 0 means no indirection
@@ -168,6 +167,13 @@ class Ext2Checker:
 				for i in range(0,12):
 					if inode.block_ptrs[i] < 0 or inode.block_ptrs[i] > self.img.superblock.blocks_count:		# block group 0 starts with block 1 on 1KB block systems
 						self.msg_handler.block_invalid_error(inode.block_ptrs[i], inode.inode_num, i, 0)
+				if inode.block_ptrs[12] < 0 or inode.block_ptrs[12] > self.img.superblock.blocks_count:		# block group 0 starts with block 1 on 1KB block systems
+						self.msg_handler.block_invalid_error(inode.block_ptrs[12], inode.inode_num, 12, 1)
+				if inode.block_ptrs[13] < 0 or inode.block_ptrs[13] > self.img.superblock.blocks_count:		# block group 0 starts with block 1 on 1KB block systems
+						self.msg_handler.block_invalid_error(inode.block_ptrs[13], inode.inode_num, 13, 2)
+				if inode.block_ptrs[14] < 0 or inode.block_ptrs[14] > self.img.superblock.blocks_count:		# block group 0 starts with block 1 on 1KB block systems
+						self.msg_handler.block_invalid_error(inode.block_ptrs[14], inode.inode_num, 14, 3)
+				
 		# TODO
 	# I-node Allocation Audits
 	def find_inode_errors(self):
