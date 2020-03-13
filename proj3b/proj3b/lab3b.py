@@ -112,7 +112,7 @@ class Ext2ErrorMsgHandler:
 	def __init__(self):
 		pass
 	# Block Consistency Errors
-	def block_invalid_error(self, block_num, inode_num, offset, level_of_indir):
+	def block_invalid_error(self, block_num, inode_num, index, known_offset, level_of_indir):
 		indir_str = ""							# assume level_of_indir = 0 means no indirection
 		indir_offset = 0
 		if level_of_indir == 1:
@@ -123,7 +123,11 @@ class Ext2ErrorMsgHandler:
 		elif level_of_indir == 3:
 			indir_str = "TRIPLE INDIRECT "
 			indir_offset = 65535 + 255
-		sys.stdout.write(f"INVALID {indir_str}BLOCK {block_num} IN INODE {inode_num} AT OFFSET {offset + indir_offset}\n")
+		# When parsing INDIRECT lines from csv, offset is already known
+		if known_offset > 0:
+			index = 0
+			indir_offset = 0
+		sys.stdout.write(f"INVALID {indir_str}BLOCK {block_num} IN INODE {inode_num} AT OFFSET {index + indir_offset + known_offset}\n")
 	def block_reserved_error(self, block_num, inode_num, offset, level_of_indir):
 		indir_str = ""							# assume level_of_indir = 0 means no indirection
 		if level_of_indir == 1:
@@ -169,20 +173,30 @@ class Ext2Checker:
 		self.msg_handler = Ext2ErrorMsgHandler()
 	# Block Consistency Audits
 	def find_block_errors(self):
-		# TODO: handle different file types
 		for inode in self.img.inodes_alloc.values():
 			if (inode.file_type == 'f') or (inode.file_type == 'd') or (file_type == 's' and inode.file_size > 60):
+				# Direct block pointers
 				for i in range(0,12):
-					if inode.block_ptrs[i] < 0 or inode.block_ptrs[i] > self.img.superblock.blocks_count:		# block group 0 starts with block 1 on 1KB block systems
-						self.msg_handler.block_invalid_error(inode.block_ptrs[i], inode.inode_num, i, 0)
-				if inode.block_ptrs[12] < 0 or inode.block_ptrs[12] > self.img.superblock.blocks_count:		# block group 0 starts with block 1 on 1KB block systems
-						self.msg_handler.block_invalid_error(inode.block_ptrs[12], inode.inode_num, 12, 1)
-				if inode.block_ptrs[13] < 0 or inode.block_ptrs[13] > self.img.superblock.blocks_count:		# block group 0 starts with block 1 on 1KB block systems
-						self.msg_handler.block_invalid_error(inode.block_ptrs[13], inode.inode_num, 13, 2)
-				if inode.block_ptrs[14] < 0 or inode.block_ptrs[14] > self.img.superblock.blocks_count:		# block group 0 starts with block 1 on 1KB block systems
-						self.msg_handler.block_invalid_error(inode.block_ptrs[14], inode.inode_num, 14, 3)
-				
-		# TODO
+					# Block group 0 starts with block 1 on 1KB block systems, so max block number is superblock.blocks_count
+					if inode.block_ptrs[i] < 0 or inode.block_ptrs[i] > self.img.superblock.blocks_count:		
+						self.msg_handler.block_invalid_error(inode.block_ptrs[i], inode.inode_num, i, 0, 0)
+				# Single indirection block pointers
+				if inode.block_ptrs[12] < 0 or inode.block_ptrs[12] > self.img.superblock.blocks_count:		
+						self.msg_handler.block_invalid_error(inode.block_ptrs[12], inode.inode_num, 12, 0, 1)
+				# Double indirection block pointers
+				if inode.block_ptrs[13] < 0 or inode.block_ptrs[13] > self.img.superblock.blocks_count:		
+						self.msg_handler.block_invalid_error(inode.block_ptrs[13], inode.inode_num, 13, 0, 2)
+				# Triple indirection block pointers
+				if inode.block_ptrs[14] < 0 or inode.block_ptrs[14] > self.img.superblock.blocks_count:		
+						self.msg_handler.block_invalid_error(inode.block_ptrs[14], inode.inode_num, 14, 0, 3)	
+		# TODO: check indir_block_refs
+		for indir_block_ref in self.img.indir_block_refs:
+			# Block number of the indirect block being scanned
+			# TODO: are we supposed to check if already saw block num in INODE lines?
+			if indir_block_ref.indir_block_num < 0 or indir_block_ref.indir_block_num > self.img.superblock.blocks_count:		
+						self.msg_handler.block_invalid_error(indir_block_ref.indir_block_num, indir_block_ref.inode_num, 0, indir_block_ref.offset, indir_block_ref.level_of_indir)
+						# TODO: Fix block_invalid_error will miscalc offset
+			# Block number of the referenced block
 	# I-node Allocation Audits
 	def find_inode_errors(self):
 		# TODO
