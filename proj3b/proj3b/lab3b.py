@@ -4,12 +4,6 @@
 
 #!/usr/bin/env python3
 
-#To Do based on TA discussion:
-#Save the .csv in a structure/class
-#Create a class or a function that prints out and formats all possible error messages
-#Refer to the .csv and that function a lot
-#Report on inconsistencies & errors on inodes, blocks, directories
-
 import sys, string, locale, csv
 
 class Ext2SuperBlock:
@@ -38,10 +32,10 @@ class Ext2Group:
 	def __str__(self):
 		return str(self.__class__) + ": " + str(self.__dict__)
 
-# TODO
 class Ext2Block:
-	def __init__(self):
-		return self.first_nonres_inode + (128*self.inodes_count-1)/self.block_size+1
+	def __init__(self, block_num):
+		self.block_num = block_num
+		self.refs = []
 
 class Ext2Inode:
 	def __init__(self, inode_num, file_type, mode, owner, group, link_count, ctime, mtime, atime, file_size, num_512_blocks):
@@ -77,6 +71,7 @@ class Ext2Image:
 		# self.superblock = None
 		self.group = None
 		self.blocks_on_freelist = set()
+		self.blocks_allocated = {}
 		self.inodes_on_freelist = set()
 		self.inodes_alloc = dict()
 		self.indir_block_refs = []
@@ -86,8 +81,8 @@ class Ext2Image:
 		with open(filename, "r") as csvfile:
 			csvreader = csv.reader(csvfile)
 			for row in csvreader:
-				if any(x.strip() for x in row):			# handle empty lines
-					self.rows.append([x.strip(' ') for x in row]) # handle leading/trailing whitespace in cells
+				if any(x.strip() for x in row):						# handle empty lines
+					self.rows.append([x.strip(' ') for x in row]) 	# handle leading/trailing whitespace in cells
 	def parse_csv(self):
 		for row in self.rows:
 			if row[0] == "SUPERBLOCK":
@@ -114,10 +109,10 @@ class Ext2Image:
 			return 1							
 		return 0											# always 0 for file systems with a block size larger than 1KBs
 	def get_max_block_num(self):
-		return self.get_first_data_block_num() + self.superblock.blocks_count - 1
+		return self.superblock.blocks_count - 1
 	def get_first_legal_block_number(self):
-		# first data block + 1 (group descriptor) +  1 (data block bitmap) + 1 (inode bitmap) + size(inode table)
-		return int(self.get_first_data_block_num() + 1 + 1 + 1 + self.superblock.inodes_count * (self.superblock.inode_size / self.superblock.block_size))
+		# first data block + 1 (group descriptor) +  1 (data block bitmap) + 1 (inode bitmap) + size(inode table) + 1 (next block after)
+		return int(self.get_first_data_block_num() + 1 + 1 + 1 + self.superblock.inodes_count * (self.superblock.inode_size / self.superblock.block_size) + 1)
 	def get_logic_offset_first_indir_block(self):
 		return 12
 	def get_logic_offset_first_doub_indir_block(self):
@@ -197,21 +192,25 @@ class Ext2Checker:
 						self.msg_handler.block_invalid_error(inode.block_ptrs[i], inode.inode_num, i, 0)
 					if inode.block_ptrs[i] > 0 and inode.block_ptrs[i] < first_legal_block_num:		
 						self.msg_handler.block_reserved_error(inode.block_ptrs[i], inode.inode_num, i, 0)
+					self.img.blocks_allocated[inode.block_ptrs[i]] = Ext2Block(inode.block_ptrs[i])
 				# Single indirection block pointers
 				if inode.block_ptrs[12] < 0 or inode.block_ptrs[12] > max_block_num:		
 						self.msg_handler.block_invalid_error(inode.block_ptrs[12], inode.inode_num, self.img.get_logic_offset_first_indir_block(), 1)
 				if inode.block_ptrs[12] > 0 and inode.block_ptrs[12] < first_legal_block_num:		
 						self.msg_handler.block_reserved_error(inode.block_ptrs[12], inode.inode_num, self.img.get_logic_offset_first_indir_block(), 1)
+				self.img.blocks_allocated[inode.block_ptrs[12]] = Ext2Block(inode.block_ptrs[12])
 				# Double indirection block pointers
 				if inode.block_ptrs[13] < 0 or inode.block_ptrs[13] > max_block_num:		
 						self.msg_handler.block_invalid_error(inode.block_ptrs[13], inode.inode_num, self.img.get_logic_offset_first_doub_indir_block(), 2)
 				if inode.block_ptrs[13] > 0 and inode.block_ptrs[13] < first_legal_block_num:		
 						self.msg_handler.block_reserved_error(inode.block_ptrs[13], inode.inode_num, self.img.get_logic_offset_first_doub_indir_block(), 2)
+				self.img.blocks_allocated[inode.block_ptrs[13]] = Ext2Block(inode.block_ptrs[13])
 				# Triple indirection block pointers
 				if inode.block_ptrs[14] < 0 or inode.block_ptrs[14] > max_block_num:		
 						self.msg_handler.block_invalid_error(inode.block_ptrs[14], inode.inode_num, self.img.get_logic_offset_first_trip_indir_block(), 3)
 				if inode.block_ptrs[14] > 0 and inode.block_ptrs[14] < first_legal_block_num:		
-						self.msg_handler.block_reserved_error(inode.block_ptrs[14], inode.inode_num, self.img.get_logic_offset_first_trip_indir_block(), 3)		
+						self.msg_handler.block_reserved_error(inode.block_ptrs[14], inode.inode_num, self.img.get_logic_offset_first_trip_indir_block(), 3)	
+				self.img.blocks_allocated[inode.block_ptrs[14]] = Ext2Block(inode.block_ptrs[14])	
 		# Check INDIRECT lines from CSV
 		for indir_block_ref in self.img.indir_block_refs:
 			# Block number of the indirect block being scanned
@@ -220,11 +219,18 @@ class Ext2Checker:
 				self.msg_handler.block_invalid_error(indir_block_ref.indir_block_num, indir_block_ref.inode_num, indir_block_ref.offset, indir_block_ref.level_of_indir)
 			if indir_block_ref.indir_block_num > 0 and indir_block_ref.indir_block_num < first_legal_block_num:
 				self.msg_handler.block_reserved_error(indir_block_ref.indir_block_num, indir_block_ref.inode_num, indir_block_ref.offset, indir_block_ref.level_of_indir)
+			self.img.blocks_allocated[indir_block_ref.indir_block_num] = Ext2Block(indir_block_ref.indir_block_num)
 			# Block number of the referenced block
 			if indir_block_ref.refd_block_num < 0 or indir_block_ref.refd_block_num > max_block_num:		
 				self.msg_handler.block_invalid_error(indir_block_ref.refd_block_num, indir_block_ref.inode_num, indir_block_ref.offset, indir_block_ref.level_of_indir - 1)
 			if indir_block_ref.refd_block_num > 0 and indir_block_ref.refd_block_num < first_legal_block_num:		
-				self.msg_handler.block_reserved_error(indir_block_ref.refd_block_num, indir_block_ref.inode_num, indir_block_ref.offset, indir_block_ref.level_of_indir - 1)	
+				self.msg_handler.block_reserved_error(indir_block_ref.refd_block_num, indir_block_ref.inode_num, indir_block_ref.offset, indir_block_ref.level_of_indir - 1)
+			self.img.blocks_allocated[indir_block_ref.refd_block_num] = Ext2Block(indir_block_ref.refd_block_num)
+		for i in range(first_legal_block_num, max_block_num + 1):
+			if i not in self.img.blocks_allocated.keys() and i not in self.img.blocks_on_freelist:
+				self.msg_handler.block_unref_and_used_error(i)
+			if i in self.img.blocks_allocated.keys() and i in self.img.blocks_on_freelist:
+				self.msg_handler.block_alloc_and_free_error(i)
 	# I-node Allocation Audits
 	def find_inode_errors(self):
 		# TODO
@@ -244,7 +250,6 @@ class Ext2Checker:
 		self.find_dir_errors()
 
 def main():
-	# TODO: add error checking for no arguments, too many arguments, invalid arguments or unable to open required files: https://piazza.com/class/k4x6oonkcge2mj
 	if (len(sys.argv) != 2):
 		sys.stderr.write("Error: invalid number of arguments.\nusage: ./lab3b [CSV FILE NAME]\n")
 		sys.exit(1)
