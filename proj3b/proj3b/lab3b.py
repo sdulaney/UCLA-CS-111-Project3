@@ -116,9 +116,7 @@ class Ext2Image:
 	def get_max_block_num(self):
 		return self.get_first_data_block_num() + self.superblock.blocks_count - 1
 	def get_first_legal_block_number(self):
-		#  The first legal block comes after the inode table
-		# 11 + 24 * (128 / 1024)
-		# return int(self.superblock.first_nonres_inode + self.superblock.inodes_count * (self.superblock.inode_size / self.superblock.block_size))
+		# first data block + 1 (group descriptor) +  1 (data block bitmap) + 1 (inode bitmap) + size(inode table)
 		return int(self.get_first_data_block_num() + 1 + 1 + 1 + self.superblock.inodes_count * (self.superblock.inode_size / self.superblock.block_size))
 	def get_logic_offset_first_indir_block(self):
 		return 12
