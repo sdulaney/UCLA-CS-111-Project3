@@ -107,31 +107,41 @@ class Ext2Image:
 				# TODO
 			if row[0] == "INDIRECT":
 				self.indir_block_refs.append(Ext2IndirBlockRef(int(row[1]), int(row[2]), int(row[3]), int(row[4]), int(row[5])))
-	def get_first_legal_block_number():
+	# Precondition: self.superblock.block_size >= 1024
+	def get_first_data_block_num(self):
+		# Block containing the superblock structure
+		if self.superblock.block_size == 1024:				# always 1 for file systems with a block size of 1KB		
+			return 1							
+		return 0											# always 0 for file systems with a block size larger than 1KBs
+	def get_max_block_num(self):
+		return self.get_first_data_block_num() + self.superblock.blocks_count - 1
+	def get_first_legal_block_number(self):
 		#  The first legal block comes after the inode table
-		return self.superblock.first_nonres_inode + self.superblock.inodes_count * (self.superblock.inode_size / self.superblock.block_size)
-
+		# 11 + 24 * (128 / 1024)
+		# return int(self.superblock.first_nonres_inode + self.superblock.inodes_count * (self.superblock.inode_size / self.superblock.block_size))
+		return int(self.get_first_data_block_num() + 1 + 1 + 1 + self.superblock.inodes_count * (self.superblock.inode_size / self.superblock.block_size))
+	def get_logic_offset_first_indir_block(self):
+		return 12
+	def get_logic_offset_first_doub_indir_block(self):
+		pointers_per_indir_block = self.superblock.block_size / 4
+		return int(12 + pointers_per_indir_block)
+	def get_logic_offset_first_trip_indir_block(self):
+		pointers_per_indir_block = self.superblock.block_size / 4
+		return int(12 + pointers_per_indir_block + (pointers_per_indir_block * pointers_per_indir_block))
 
 class Ext2ErrorMsgHandler:
 	def __init__(self):
 		pass
 	# Block Consistency Errors
-	def block_invalid_error(self, block_num, inode_num, index, known_offset, level_of_indir):
+	def block_invalid_error(self, block_num, inode_num, offset, level_of_indir):
 		indir_str = ""							# assume level_of_indir = 0 means no indirection
-		indir_offset = 0
 		if level_of_indir == 1:
 			indir_str = "INDIRECT "
 		elif level_of_indir == 2:
 			indir_str = "DOUBLE INDIRECT "
-			indir_offset = 255
 		elif level_of_indir == 3:
 			indir_str = "TRIPLE INDIRECT "
-			indir_offset = 65535 + 255
-		# When parsing INDIRECT lines from csv, offset is already known
-		if known_offset > 0:
-			index = 0
-			indir_offset = 0
-		sys.stdout.write(f"INVALID {indir_str}BLOCK {block_num} IN INODE {inode_num} AT OFFSET {index + indir_offset + known_offset}\n")
+		sys.stdout.write(f"INVALID {indir_str}BLOCK {block_num} IN INODE {inode_num} AT OFFSET {offset}\n")
 	def block_reserved_error(self, block_num, inode_num, offset, level_of_indir):
 		indir_str = ""							# assume level_of_indir = 0 means no indirection
 		if level_of_indir == 1:
@@ -177,31 +187,46 @@ class Ext2Checker:
 		self.msg_handler = Ext2ErrorMsgHandler()
 	# Block Consistency Audits
 	def find_block_errors(self):
+		first_legal_block_num = self.img.get_first_legal_block_number()
+		max_block_num = self.img.get_max_block_num()
 		# Check INODE lines from CSV
 		for inode in self.img.inodes_alloc.values():
 			if (inode.file_type == 'f') or (inode.file_type == 'd') or (file_type == 's' and inode.file_size > 60):
 				# Direct block pointers
 				for i in range(0,12):
 					# Block group 0 starts with block 1 on 1KB block systems, so max block number is superblock.blocks_count
-					if inode.block_ptrs[i] < 0 or inode.block_ptrs[i] > self.img.superblock.blocks_count:		
-						self.msg_handler.block_invalid_error(inode.block_ptrs[i], inode.inode_num, i, 0, 0)
+					if inode.block_ptrs[i] < 0 or inode.block_ptrs[i] > max_block_num:		
+						self.msg_handler.block_invalid_error(inode.block_ptrs[i], inode.inode_num, i, 0)
+					if inode.block_ptrs[i] > 0 and inode.block_ptrs[i] < first_legal_block_num:		
+						self.msg_handler.block_reserved_error(inode.block_ptrs[i], inode.inode_num, i, 0)
 				# Single indirection block pointers
-				if inode.block_ptrs[12] < 0 or inode.block_ptrs[12] > self.img.superblock.blocks_count:		
-						self.msg_handler.block_invalid_error(inode.block_ptrs[12], inode.inode_num, 12, 0, 1)
+				if inode.block_ptrs[12] < 0 or inode.block_ptrs[12] > max_block_num:		
+						self.msg_handler.block_invalid_error(inode.block_ptrs[12], inode.inode_num, self.img.get_logic_offset_first_indir_block(), 1)
+				if inode.block_ptrs[12] > 0 and inode.block_ptrs[12] < first_legal_block_num:		
+						self.msg_handler.block_reserved_error(inode.block_ptrs[12], inode.inode_num, self.img.get_logic_offset_first_indir_block(), 1)
 				# Double indirection block pointers
-				if inode.block_ptrs[13] < 0 or inode.block_ptrs[13] > self.img.superblock.blocks_count:		
-						self.msg_handler.block_invalid_error(inode.block_ptrs[13], inode.inode_num, 13, 0, 2)
+				if inode.block_ptrs[13] < 0 or inode.block_ptrs[13] > max_block_num:		
+						self.msg_handler.block_invalid_error(inode.block_ptrs[13], inode.inode_num, self.img.get_logic_offset_first_doub_indir_block(), 2)
+				if inode.block_ptrs[13] > 0 and inode.block_ptrs[13] < first_legal_block_num:		
+						self.msg_handler.block_reserved_error(inode.block_ptrs[13], inode.inode_num, self.img.get_logic_offset_first_doub_indir_block(), 2)
 				# Triple indirection block pointers
-				if inode.block_ptrs[14] < 0 or inode.block_ptrs[14] > self.img.superblock.blocks_count:		
-						self.msg_handler.block_invalid_error(inode.block_ptrs[14], inode.inode_num, 14, 0, 3)	
+				if inode.block_ptrs[14] < 0 or inode.block_ptrs[14] > max_block_num:		
+						self.msg_handler.block_invalid_error(inode.block_ptrs[14], inode.inode_num, self.img.get_logic_offset_first_trip_indir_block(), 3)
+				if inode.block_ptrs[14] > 0 and inode.block_ptrs[14] < first_legal_block_num:		
+						self.msg_handler.block_reserved_error(inode.block_ptrs[14], inode.inode_num, self.img.get_logic_offset_first_trip_indir_block(), 3)		
 		# Check INDIRECT lines from CSV
 		for indir_block_ref in self.img.indir_block_refs:
 			# Block number of the indirect block being scanned
-			# TODO: are we supposed to check if already saw block num in INODE lines?
-			if indir_block_ref.indir_block_num < 0 or indir_block_ref.indir_block_num > self.img.superblock.blocks_count:		
-						self.msg_handler.block_invalid_error(indir_block_ref.indir_block_num, indir_block_ref.inode_num, 0, indir_block_ref.offset, indir_block_ref.level_of_indir)
-						# TODO: Fix block_invalid_error will miscalc offset: https://piazza.com/class/k4x6oonkcge2mj?cid=942
-			# TODO: Block number of the referenced block
+			# TODO: do we need to check if already saw block num in INODE lines?
+			if indir_block_ref.indir_block_num < 0 or indir_block_ref.indir_block_num > max_block_num:
+				self.msg_handler.block_invalid_error(indir_block_ref.indir_block_num, indir_block_ref.inode_num, indir_block_ref.offset, indir_block_ref.level_of_indir)
+			if indir_block_ref.indir_block_num > 0 and indir_block_ref.indir_block_num < first_legal_block_num:
+				self.msg_handler.block_reserved_error(indir_block_ref.indir_block_num, indir_block_ref.inode_num, indir_block_ref.offset, indir_block_ref.level_of_indir)
+			# Block number of the referenced block
+			if indir_block_ref.refd_block_num < 0 or indir_block_ref.refd_block_num > max_block_num:		
+				self.msg_handler.block_invalid_error(indir_block_ref.refd_block_num, indir_block_ref.inode_num, indir_block_ref.offset, indir_block_ref.level_of_indir - 1)
+			if indir_block_ref.refd_block_num > 0 and indir_block_ref.refd_block_num < first_legal_block_num:		
+				self.msg_handler.block_reserved_error(indir_block_ref.refd_block_num, indir_block_ref.inode_num, indir_block_ref.offset, indir_block_ref.level_of_indir - 1)	
 	# I-node Allocation Audits
 	def find_inode_errors(self):
 		# TODO
