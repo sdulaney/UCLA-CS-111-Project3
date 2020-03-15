@@ -56,7 +56,6 @@ class Ext2Inode:
 		self.num_512_blocks = num_512_blocks
 		self.block_ptrs = []
 		self.links_found = 0
-		# TODO	
 
 class Ext2DirEntry:
 	def __init__(self, parent_inode_num, offset, refd_inode_num, entry_len, name_len, name):
@@ -78,7 +77,6 @@ class Ext2IndirBlockRef:
 class Ext2Image:
 	def __init__(self, filename):
 		self.rows = []
-		# self.superblock = None
 		self.group = None
 		self.blocks_on_freelist = set()
 		self.blocks_allocated = {}
@@ -197,7 +195,6 @@ class Ext2Checker:
 			if (inode.file_type == 'f') or (inode.file_type == 'd') or (file_type == 's' and inode.file_size > 60):
 				# Direct block pointers
 				for i in range(0,12):
-					# Block group 0 starts with block 1 on 1KB block systems, so max block number is superblock.blocks_count
 					if inode.block_ptrs[i] < 0 or inode.block_ptrs[i] > max_block_num:		
 						self.msg_handler.block_invalid_error(inode.block_ptrs[i], inode.inode_num, i, 0)
 					if inode.block_ptrs[i] > 0 and inode.block_ptrs[i] < first_legal_block_num:		
@@ -257,7 +254,6 @@ class Ext2Checker:
 						self.msg_handler.block_duplicate_error(self.img.blocks_allocated[i].refs[j].block_num, self.img.blocks_allocated[i].refs[j].inode_num, self.img.blocks_allocated[i].refs[j].offset, self.img.blocks_allocated[i].refs[j].level_of_indir)
 	# I-node Allocation Audits
 	def find_inode_errors(self):
-		# TODO
 		for key in self.img.inodes_alloc:
 			if key in self.img.inodes_on_freelist:
 				self.msg_handler.inode_alloc_on_freelist_error(key)
@@ -266,13 +262,26 @@ class Ext2Checker:
 				self.msg_handler.inode_unalloc_not_on_freelist_error(inode_num)
 	# Directory Consistency Audits
 	def find_dir_errors(self):
-		# TODO
 		for dir_entry in self.img.dir_entries:
+			if dir_entry.refd_inode_num < 1 or dir_entry.refd_inode_num > self.img.superblock.inodes_count:
+				self.msg_handler.dir_invalid_inode_error(dir_entry.parent_inode_num, dir_entry.name, dir_entry.refd_inode_num)
+				continue
 			if dir_entry.refd_inode_num in self.img.inodes_alloc.keys():
 				self.img.inodes_alloc[dir_entry.refd_inode_num].links_found += 1
 			else:
 				self.msg_handler.dir_unalloc_inode_error(dir_entry.parent_inode_num, dir_entry.name, dir_entry.refd_inode_num)
-			
+			if dir_entry.name == "'..'":
+				if dir_entry.parent_inode_num == 2:
+					if dir_entry.refd_inode_num != 2:
+						self.msg_handler.dir_invalid_parent_link_error(dir_entry.parent_inode_num, dir_entry.refd_inode_num, 2)
+				else:
+					for entry in self.img.dir_entries:
+						if entry.refd_inode_num == dir_entry.parent_inode_num and entry.name != "'.'":
+							if dir_entry.refd_inode_num != entry.parent_inode_num:
+								self.msg_handler.dir_invalid_parent_link_error(dir_entry.parent_inode_num, dir_entry.refd_inode_num, entry.parent_inode_num)
+			elif dir_entry.name == '.':
+				if dir_entry.parent_inode_num != dir_entry.refd_inode_num:
+					dir_invalid_self_link_error(dir_entry.parent_inode_num, dir_entry.refd_inode_num, dir_entry.parent_inode_num)
 		for inode in self.img.inodes_alloc.values():
 			if inode.link_count != inode.links_found:
 				self.msg_handler.dir_incorrect_link_count_error(inode.inode_num, inode.links_found, inode.link_count)
