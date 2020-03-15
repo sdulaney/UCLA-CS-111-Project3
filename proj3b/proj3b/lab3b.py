@@ -272,6 +272,7 @@ class Ext2Checker:
 				self.img.inodes_alloc[dir_entry.refd_inode_num].links_found += 1
 			else:
 				self.msg_handler.dir_unalloc_inode_error(dir_entry.parent_inode_num, dir_entry.name, dir_entry.refd_inode_num)
+			
 		for inode in self.img.inodes_alloc.values():
 			if inode.link_count != inode.links_found:
 				self.msg_handler.dir_incorrect_link_count_error(inode.inode_num, inode.links_found, inode.link_count)
