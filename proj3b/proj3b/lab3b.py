@@ -28,14 +28,18 @@ class Ext2Group:
 		self.block_bitmap = block_bitmap				# block number of free block bitmap for this group (decimal)
 		self.inode_bitmap = inode_bitmap				# block number of free i-node bitmap for this group (decimal)
 		self.inode_table = inode_table					# block number of first block of i-nodes in this group (decimal)
-
 	def __str__(self):
 		return str(self.__class__) + ": " + str(self.__dict__)
 
 class Ext2Block:
-	def __init__(self, block_num):
+	def __init__(self, block_num, level_of_indir, inode_num, offset):
 		self.block_num = block_num
+		self.level_of_indir = level_of_indir
+		self.inode_num = inode_num
+		self.offset = offset
 		self.refs = []
+	def __str__(self):
+		return str(self.__class__) + ": " + str(self.__dict__)
 
 class Ext2Inode:
 	def __init__(self, inode_num, file_type, mode, owner, group, link_count, ctime, mtime, atime, file_size, num_512_blocks):
@@ -58,10 +62,10 @@ class Ext2Inode:
 # 	def __init__(self):
 
 class Ext2IndirBlockRef:
-	def __init__(self, inode_num, level_of_indir, logical_block_offset, indir_block_num, refd_block_num):
+	def __init__(self, inode_num, level_of_indir, offset, indir_block_num, refd_block_num):
 		self.inode_num = inode_num
 		self.level_of_indir = level_of_indir
-		self.logical_block_offset = logical_block_offset
+		self.offset = offset
 		self.indir_block_num = indir_block_num
 		self.refd_block_num = refd_block_num
 
@@ -192,45 +196,69 @@ class Ext2Checker:
 						self.msg_handler.block_invalid_error(inode.block_ptrs[i], inode.inode_num, i, 0)
 					if inode.block_ptrs[i] > 0 and inode.block_ptrs[i] < first_legal_block_num:		
 						self.msg_handler.block_reserved_error(inode.block_ptrs[i], inode.inode_num, i, 0)
-					self.img.blocks_allocated[inode.block_ptrs[i]] = Ext2Block(inode.block_ptrs[i])
+					if inode.block_ptrs[i] > 0:
+						if inode.block_ptrs[i] not in self.img.blocks_allocated.keys():
+							self.img.blocks_allocated[inode.block_ptrs[i]] = Ext2Block(inode.block_ptrs[i], 0, inode.inode_num, i)
+						self.img.blocks_allocated[inode.block_ptrs[i]].refs.append(Ext2Block(inode.block_ptrs[i], 0, inode.inode_num, i))
 				# Single indirection block pointers
 				if inode.block_ptrs[12] < 0 or inode.block_ptrs[12] > max_block_num:		
 						self.msg_handler.block_invalid_error(inode.block_ptrs[12], inode.inode_num, self.img.get_logic_offset_first_indir_block(), 1)
 				if inode.block_ptrs[12] > 0 and inode.block_ptrs[12] < first_legal_block_num:		
 						self.msg_handler.block_reserved_error(inode.block_ptrs[12], inode.inode_num, self.img.get_logic_offset_first_indir_block(), 1)
-				self.img.blocks_allocated[inode.block_ptrs[12]] = Ext2Block(inode.block_ptrs[12])
+				if inode.block_ptrs[12] > 0:
+					if inode.block_ptrs[12] not in self.img.blocks_allocated.keys():
+						self.img.blocks_allocated[inode.block_ptrs[12]] = Ext2Block(inode.block_ptrs[12], 1, inode.inode_num, self.img.get_logic_offset_first_indir_block())
+					self.img.blocks_allocated[inode.block_ptrs[12]].refs.append(Ext2Block(inode.block_ptrs[12], 1, inode.inode_num, self.img.get_logic_offset_first_indir_block()))
 				# Double indirection block pointers
 				if inode.block_ptrs[13] < 0 or inode.block_ptrs[13] > max_block_num:		
 						self.msg_handler.block_invalid_error(inode.block_ptrs[13], inode.inode_num, self.img.get_logic_offset_first_doub_indir_block(), 2)
 				if inode.block_ptrs[13] > 0 and inode.block_ptrs[13] < first_legal_block_num:		
 						self.msg_handler.block_reserved_error(inode.block_ptrs[13], inode.inode_num, self.img.get_logic_offset_first_doub_indir_block(), 2)
-				self.img.blocks_allocated[inode.block_ptrs[13]] = Ext2Block(inode.block_ptrs[13])
+				if inode.block_ptrs[13] > 0:
+					if inode.block_ptrs[13] not in self.img.blocks_allocated.keys():
+						self.img.blocks_allocated[inode.block_ptrs[13]] = Ext2Block(inode.block_ptrs[13], 2, inode.inode_num, self.img.get_logic_offset_first_doub_indir_block())
+					self.img.blocks_allocated[inode.block_ptrs[13]].refs.append(Ext2Block(inode.block_ptrs[13], 2, inode.inode_num, self.img.get_logic_offset_first_doub_indir_block()))
 				# Triple indirection block pointers
 				if inode.block_ptrs[14] < 0 or inode.block_ptrs[14] > max_block_num:		
 						self.msg_handler.block_invalid_error(inode.block_ptrs[14], inode.inode_num, self.img.get_logic_offset_first_trip_indir_block(), 3)
 				if inode.block_ptrs[14] > 0 and inode.block_ptrs[14] < first_legal_block_num:		
 						self.msg_handler.block_reserved_error(inode.block_ptrs[14], inode.inode_num, self.img.get_logic_offset_first_trip_indir_block(), 3)	
-				self.img.blocks_allocated[inode.block_ptrs[14]] = Ext2Block(inode.block_ptrs[14])	
+				if inode.block_ptrs[14] > 0:
+					if inode.block_ptrs[14] not in self.img.blocks_allocated.keys():
+						self.img.blocks_allocated[inode.block_ptrs[14]] = Ext2Block(inode.block_ptrs[14], 3, inode.inode_num, self.img.get_logic_offset_first_trip_indir_block())	
+					self.img.blocks_allocated[inode.block_ptrs[14]].refs.append(Ext2Block(inode.block_ptrs[14], 3, inode.inode_num, self.img.get_logic_offset_first_trip_indir_block()))
 		# Check INDIRECT lines from CSV
 		for indir_block_ref in self.img.indir_block_refs:
 			# Block number of the indirect block being scanned
 			# TODO: do we need to check if already saw block num in INODE lines?
-			if indir_block_ref.indir_block_num < 0 or indir_block_ref.indir_block_num > max_block_num:
-				self.msg_handler.block_invalid_error(indir_block_ref.indir_block_num, indir_block_ref.inode_num, indir_block_ref.offset, indir_block_ref.level_of_indir)
-			if indir_block_ref.indir_block_num > 0 and indir_block_ref.indir_block_num < first_legal_block_num:
-				self.msg_handler.block_reserved_error(indir_block_ref.indir_block_num, indir_block_ref.inode_num, indir_block_ref.offset, indir_block_ref.level_of_indir)
-			self.img.blocks_allocated[indir_block_ref.indir_block_num] = Ext2Block(indir_block_ref.indir_block_num)
+			# if indir_block_ref.indir_block_num < 0 or indir_block_ref.indir_block_num > max_block_num:
+			# 	self.msg_handler.block_invalid_error(indir_block_ref.indir_block_num, indir_block_ref.inode_num, indir_block_ref.offset, indir_block_ref.level_of_indir)
+			# if indir_block_ref.indir_block_num > 0 and indir_block_ref.indir_block_num < first_legal_block_num:
+			# 	self.msg_handler.block_reserved_error(indir_block_ref.indir_block_num, indir_block_ref.inode_num, indir_block_ref.offset, indir_block_ref.level_of_indir)
+			# if indir_block_ref.indir_block_num > 0:
+			# 	if indir_block_ref.indir_block_num not in self.img.blocks_allocated.keys():
+			# 		self.img.blocks_allocated[indir_block_ref.indir_block_num] = Ext2Block(indir_block_ref.indir_block_num, indir_block_ref.level_of_indir, indir_block_ref.inode_num, indir_block_ref.offset)
+			# 	self.img.blocks_allocated[indir_block_ref.indir_block_num].refs.append(Ext2Block(indir_block_ref.indir_block_num, indir_block_ref.level_of_indir, indir_block_ref.inode_num, indir_block_ref.offset))
 			# Block number of the referenced block
 			if indir_block_ref.refd_block_num < 0 or indir_block_ref.refd_block_num > max_block_num:		
 				self.msg_handler.block_invalid_error(indir_block_ref.refd_block_num, indir_block_ref.inode_num, indir_block_ref.offset, indir_block_ref.level_of_indir - 1)
 			if indir_block_ref.refd_block_num > 0 and indir_block_ref.refd_block_num < first_legal_block_num:		
 				self.msg_handler.block_reserved_error(indir_block_ref.refd_block_num, indir_block_ref.inode_num, indir_block_ref.offset, indir_block_ref.level_of_indir - 1)
-			self.img.blocks_allocated[indir_block_ref.refd_block_num] = Ext2Block(indir_block_ref.refd_block_num)
+			if indir_block_ref.refd_block_num > 0:
+				if indir_block_ref.refd_block_num not in self.img.blocks_allocated.keys():
+					self.img.blocks_allocated[indir_block_ref.refd_block_num] = Ext2Block(indir_block_ref.refd_block_num, indir_block_ref.level_of_indir - 1, indir_block_ref.inode_num, indir_block_ref.offset)
+				self.img.blocks_allocated[indir_block_ref.refd_block_num].refs.append(Ext2Block(indir_block_ref.refd_block_num, indir_block_ref.level_of_indir - 1, indir_block_ref.inode_num, indir_block_ref.offset))
 		for i in range(first_legal_block_num, max_block_num + 1):
 			if i not in self.img.blocks_allocated.keys() and i not in self.img.blocks_on_freelist:
 				self.msg_handler.block_unref_and_used_error(i)
 			if i in self.img.blocks_allocated.keys() and i in self.img.blocks_on_freelist:
 				self.msg_handler.block_alloc_and_free_error(i)
+			if i in self.img.blocks_allocated.keys():
+				num_refs = len(self.img.blocks_allocated[i].refs)
+				if num_refs > 1:
+					for j in range(0, num_refs):
+						# print(self.img.blocks_allocated[i].refs[j])
+						self.msg_handler.block_duplicate_error(self.img.blocks_allocated[i].refs[j].block_num, self.img.blocks_allocated[i].refs[j].inode_num, self.img.blocks_allocated[i].refs[j].offset, self.img.blocks_allocated[i].refs[j].level_of_indir)
 	# I-node Allocation Audits
 	def find_inode_errors(self):
 		# TODO
