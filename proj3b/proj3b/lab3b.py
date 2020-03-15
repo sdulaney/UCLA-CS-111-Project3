@@ -55,11 +55,17 @@ class Ext2Inode:
 		self.file_size = file_size
 		self.num_512_blocks = num_512_blocks
 		self.block_ptrs = []
+		self.links_found = 0
 		# TODO	
 
-# TODO
-# class Ext2Directory:
-# 	def __init__(self):
+class Ext2DirEntry:
+	def __init__(self, parent_inode_num, offset, refd_inode_num, entry_len, name_len, name):
+		self.parent_inode_num = parent_inode_num
+		self.offset = offset
+		self.refd_inode_num = refd_inode_num
+		self.entry_len = entry_len
+		self.name_len = name_len
+		self.name = name
 
 class Ext2IndirBlockRef:
 	def __init__(self, inode_num, level_of_indir, offset, indir_block_num, refd_block_num):
@@ -78,6 +84,7 @@ class Ext2Image:
 		self.blocks_allocated = {}
 		self.inodes_on_freelist = set()
 		self.inodes_alloc = dict()
+		self.dir_entries = []
 		self.indir_block_refs = []
 		self.read_csv(filename)
 		self.parse_csv()
@@ -101,9 +108,8 @@ class Ext2Image:
 				self.inodes_alloc[int(row[1])] = Ext2Inode(int(row[1]), row[2], int(row[3]), int(row[4]), int(row[5]), int(row[6]), row[7], row[8], row[9], int(row[10]), int(row[11]))
 				for i in range(12,27):
 					self.inodes_alloc[int(row[1])].block_ptrs.append(int(row[i]))
-				# TODO
-			# if row[0] == "DIRENT":
-				# TODO
+			if row[0] == "DIRENT":
+				self.dir_entries.append(Ext2DirEntry(int(row[1]), int(row[2]), int(row[3]), int(row[4]), int(row[5]), row[6]))
 			if row[0] == "INDIRECT":
 				self.indir_block_refs.append(Ext2IndirBlockRef(int(row[1]), int(row[2]), int(row[3]), int(row[4]), int(row[5])))
 	# Precondition: self.superblock.block_size >= 1024
@@ -170,9 +176,9 @@ class Ext2ErrorMsgHandler:
 	def dir_incorrect_link_count_error(self, inode_num, ref_count, link_count):
 		sys.stdout.write(f"INODE {inode_num} HAS {ref_count} LINKS BUT LINKCOUNT IS {link_count}\n")
 	def dir_unalloc_inode_error(self, dir_num, name, inode_num):
-		sys.stdout.write(f"DIRECTORY INODE {dir_num} NAME '{name}' UNALLOCATED INODE {inode_num}\n")
+		sys.stdout.write(f"DIRECTORY INODE {dir_num} NAME {name} UNALLOCATED INODE {inode_num}\n")
 	def dir_invalid_inode_error(self, dir_num, name, inode_num):
-		sys.stdout.write(f"DIRECTORY INODE {dir_num} NAME '{name}' INVALID INODE {inode_num}\n")
+		sys.stdout.write(f"DIRECTORY INODE {dir_num} NAME {name} INVALID INODE {inode_num}\n")
 	def dir_invalid_parent_link_error(self, dir_num, inode_num, correct_inode_num):
 		sys.stdout.write(f"DIRECTORY INODE {dir_num} NAME '..' LINK TO INODE {inode_num} SHOULD BE {correct_inode_num}\n")
 	def dir_invalid_self_link_error(self, dir_num, inode_num, correct_inode_num):
@@ -248,7 +254,6 @@ class Ext2Checker:
 				num_refs = len(self.img.blocks_allocated[i].refs)
 				if num_refs > 1:
 					for j in range(0, num_refs):
-						# print(self.img.blocks_allocated[i].refs[j])
 						self.msg_handler.block_duplicate_error(self.img.blocks_allocated[i].refs[j].block_num, self.img.blocks_allocated[i].refs[j].inode_num, self.img.blocks_allocated[i].refs[j].offset, self.img.blocks_allocated[i].refs[j].level_of_indir)
 	# I-node Allocation Audits
 	def find_inode_errors(self):
@@ -262,7 +267,15 @@ class Ext2Checker:
 	# Directory Consistency Audits
 	def find_dir_errors(self):
 		# TODO
-		pass
+		for dir_entry in self.img.dir_entries:
+			if dir_entry.refd_inode_num in self.img.inodes_alloc.keys():
+				self.img.inodes_alloc[dir_entry.refd_inode_num].links_found += 1
+			else:
+				self.msg_handler.dir_unalloc_inode_error(dir_entry.parent_inode_num, dir_entry.name, dir_entry.refd_inode_num)
+		for inode in self.img.inodes_alloc.values():
+			if inode.link_count != inode.links_found:
+				self.msg_handler.dir_incorrect_link_count_error(inode.inode_num, inode.links_found, inode.link_count)
+
 	def find_all_errors(self):
 		self.find_block_errors()
 		self.find_inode_errors()
