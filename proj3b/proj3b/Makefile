@@ -18,4 +18,5 @@ dist: clean
 	-tar -czf $(ARCHIVE) $(sources)
 
 clean:
+	-rm lab$(LAB)
 	-rm $(ARCHIVE)
