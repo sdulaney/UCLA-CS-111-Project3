@@ -229,16 +229,7 @@ class Ext2Checker:
 					self.img.blocks_allocated[inode.block_ptrs[14]].refs.append(Ext2Block(inode.block_ptrs[14], 3, inode.inode_num, self.img.get_logic_offset_first_trip_indir_block()))
 		# Check INDIRECT lines from CSV
 		for indir_block_ref in self.img.indir_block_refs:
-			# Block number of the indirect block being scanned
-			# TODO: do we need to check if already saw block num in INODE lines?
-			# if indir_block_ref.indir_block_num < 0 or indir_block_ref.indir_block_num > max_block_num:
-			# 	self.msg_handler.block_invalid_error(indir_block_ref.indir_block_num, indir_block_ref.inode_num, indir_block_ref.offset, indir_block_ref.level_of_indir)
-			# if indir_block_ref.indir_block_num > 0 and indir_block_ref.indir_block_num < first_legal_block_num:
-			# 	self.msg_handler.block_reserved_error(indir_block_ref.indir_block_num, indir_block_ref.inode_num, indir_block_ref.offset, indir_block_ref.level_of_indir)
-			# if indir_block_ref.indir_block_num > 0:
-			# 	if indir_block_ref.indir_block_num not in self.img.blocks_allocated.keys():
-			# 		self.img.blocks_allocated[indir_block_ref.indir_block_num] = Ext2Block(indir_block_ref.indir_block_num, indir_block_ref.level_of_indir, indir_block_ref.inode_num, indir_block_ref.offset)
-			# 	self.img.blocks_allocated[indir_block_ref.indir_block_num].refs.append(Ext2Block(indir_block_ref.indir_block_num, indir_block_ref.level_of_indir, indir_block_ref.inode_num, indir_block_ref.offset))
+			# Block number of the indirect block being scanned (indir_block_ref.indir_block_num) is already checked for errors when checking INODE lines from CSV
 			# Block number of the referenced block
 			if indir_block_ref.refd_block_num < 0 or indir_block_ref.refd_block_num > max_block_num:		
 				self.msg_handler.block_invalid_error(indir_block_ref.refd_block_num, indir_block_ref.inode_num, indir_block_ref.offset, indir_block_ref.level_of_indir - 1)
